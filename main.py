@@ -240,6 +240,86 @@ def analyze_audio_highlights(audio_path, duration, count):
             pass
 
 
+
+def parse_vtt_timestamp(value):
+    match = re.match(r"(?:(\\d+):)?(\\d{2}):(\\d{2})[.,](\\d{3})", value.strip())
+    if not match:
+        return None
+    hours = int(match.group(1) or 0)
+    minutes = int(match.group(2))
+    seconds = int(match.group(3))
+    millis = int(match.group(4))
+    return hours * 3600 + minutes * 60 + seconds + millis / 1000.0
+
+
+def download_source_captions(url, source_dir):
+    """Fetch only platform-provided Spanish/English captions; never downloads video."""
+    options = {
+        "skip_download": True, "writesubtitles": True, "writeautomaticsub": True,
+        "subtitleslangs": ["es", "es-419", "es-ES", "en"],
+        "subtitlesformat": "vtt/best", "outtmpl": str(source_dir / "captions.%(ext)s"),
+        "noplaylist": True, "quiet": True, "no_warnings": True,
+        "ignoreerrors": True, "socket_timeout": 15, "retries": 1,
+        "extractor_retries": 1,
+    }
+    with yt_dlp.YoutubeDL(options) as ydl:
+        ydl.download([url])
+    files = sorted(source_dir.glob("captions*.vtt"),
+                   key=lambda path: (0 if re.search(r"\\.es(?:[-.]|\\.)", path.name, re.I) else 1, path.name))
+    return files[0] if files else None
+
+
+def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
+    """Convert available VTT cues to a clip-relative SRT file."""
+    if not vtt_path or not vtt_path.is_file():
+        return False
+    try:
+        lines = vtt_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False
+    cues = []
+    i = 0
+    while i < len(lines):
+        match = re.match(r"^\\s*((?:\\d{2}:)?\\d{2}:\\d{2}[.,]\\d{3})\\s+-->\\s+((?:\\d{2}:)?\\d{2}:\\d{2}[.,]\\d{3})", lines[i])
+        if not match:
+            i += 1
+            continue
+        start = parse_vtt_timestamp(match.group(1))
+        end = parse_vtt_timestamp(match.group(2))
+        i += 1
+        text_lines = []
+        while i < len(lines) and lines[i].strip():
+            text_lines.append(lines[i])
+            i += 1
+        text = " ".join(text_lines)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = html.unescape(text)
+        text = re.sub(r"\\s+", " ", text).strip()
+        if start is not None and end is not None and end > clip_start and start < clip_end and text:
+            left = max(0.0, start - clip_start)
+            right = min(clip_end - clip_start, end - clip_start)
+            if right > left:
+                cues.append((left, right, text))
+        i += 1
+    if not cues:
+        return False
+
+    def stamp(seconds):
+        milliseconds = max(0, int(round(seconds * 1000)))
+        hours, remainder = divmod(milliseconds, 3600000)
+        minutes, remainder = divmod(remainder, 60000)
+        seconds_part, millis = divmod(remainder, 1000)
+        return "%02d:%02d:%02d,%03d" % (hours, minutes, seconds_part, millis)
+
+    try:
+        with output_path.open("w", encoding="utf-8") as output:
+            for index, (start, end, text) in enumerate(cues, 1):
+                output.write("%d\\n%s --> %s\\n%s\\n\\n" % (index, stamp(start), stamp(end), text))
+        return True
+    except OSError:
+        return False
+
+
 def safe_error(exc):
     msg = str(exc).lower()
     if "not a bot" in msg or "sign in to confirm" in msg:
@@ -356,6 +436,18 @@ def process_job(job_id, url, count):
                 except OSError:
                     pass
 
+        caption_file = None
+        try:
+            with JOBS_LOCK:
+                JOBS[job_id] = {"status": "processing", "message": "Buscando subtítulos disponibles en el vídeo…", "clips": []}
+            caption_file = download_source_captions(url, source_dir)
+            if caption_file:
+                print("CLIPS.ONTHE captions found for %s: %s" % (job_id, caption_file.name), flush=True)
+            else:
+                print("CLIPS.ONTHE no platform captions available for %s" % job_id, flush=True)
+        except Exception as caption_exc:
+            print("CLIPS.ONTHE captions unavailable for %s: %s" % (job_id, caption_exc), flush=True)
+
         progress = {i + 1: {"done": False, "percent": 0, "mb": 0, "speed": 0} for i in range(total)}
 
         def update_progress(index, data):
@@ -451,21 +543,34 @@ def process_job(job_id, url, count):
 
             filename = "clip_%02d.mp4" % i
             output = folder / filename
-            subprocess.run([
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(source), "-t", str(max(1, clip_range["end_time"] - clip_range["start_time"])),
-                "-filter_complex",
+            srt_path = source_dir / ("clip_%02d.srt" % i)
+            has_subtitles = write_clip_srt(
+                caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
+            )
+            video_filter = (
                 "[0:v]split=2[bg][fg];"
                 "[bg]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=24:8[bg];"
                 "[fg]scale=720:1280:force_original_aspect_ratio=decrease[fg];"
-                "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]",
+                "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
+            )
+            if has_subtitles:
+                video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
+            video_filter += "[v]"
+            subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-i", str(source), "-t", str(max(1, clip_range["end_time"] - clip_range["start_time"])),
+                "-filter_complex", video_filter,
                 "-map", "[v]", "-map", "0:a?",
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21",
                 "-threads", "1", "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart", str(output)
             ], capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename)})
+            clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename)})
+            try:
+                srt_path.unlink(missing_ok=True)
+            except OSError:
+                pass
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
