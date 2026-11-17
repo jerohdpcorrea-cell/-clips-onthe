@@ -247,20 +247,19 @@ def process_job(job_id, url, count):
                 "clips": []
             }
 
-        downloaded_sources = {}
-        # Una sola descarga a la vez evita superar los 512 MB de RAM del plan gratuito.
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            futures = [
-                pool.submit(download_one, index, clip_range)
-                for index, clip_range in enumerate(ranges, start=1)
-            ]
-            for future in as_completed(futures):
-                index, source = future.result()
-                downloaded_sources[index] = source
-
         clips = []
-        for i in range(1, total + 1):
-            source = downloaded_sources[i]
+        # Descarga y convierte cada fragmento antes de pasar al siguiente,
+        # para que el usuario pueda reproducir el clip cuanto antes.
+        for i, clip_range in enumerate(ranges, start=1):
+            with JOBS_LOCK:
+                JOBS[job_id] = {
+                    "status": "processing",
+                    "message": "Descargando el fragmento %d/%d…" % (i, total),
+                    "clips": list(clips)
+                }
+
+            _, source = download_one(i, clip_range)
+
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
@@ -286,6 +285,10 @@ def process_job(job_id, url, count):
                     "message": "Clip %d/%d listo. Puedes reproducirlo mientras se prepara el siguiente." % (i, total),
                     "clips": list(clips)
                 }
+            try:
+                source.unlink(missing_ok=True)
+            except OSError:
+                pass
             if folder_size(BASE) > MAX_STORAGE_BYTES:
                 raise RuntimeError("Se alcanzó el límite temporal de almacenamiento. Inténtalo con menos clips.")
 
