@@ -9,6 +9,7 @@ import wave
 import math
 import array
 import statistics
+import html
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -73,7 +74,7 @@ function renderClips(state,done=false){
  result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p>"+cards;
 }
 form.addEventListener("submit",async e=>{
- e.preventDefault();btn.disabled=true;result.textContent="Enviando vídeo para procesar…";
+ e.preventDefault();btn.disabled=true;renderedClipCount=0;result.textContent="Enviando vídeo para procesar…";
  try{
   const res=await fetch("/api/clips",{method:"POST",body:new FormData(form)});
   const data=await readJson(res);if(!res.ok)throw new Error(data.detail||"No se pudo iniciar el trabajo.");
@@ -175,6 +176,13 @@ def analyze_audio_highlights(audio_path, duration, count):
         candidates = []
         step = 5
         available = min(len(levels), int(duration))
+        # Normalizar contra el propio vídeo evita que un volumen general alto
+        # (por ejemplo, música constante) domine toda la selección.
+        ordered_levels = sorted(levels[:available])
+        p20 = ordered_levels[int((len(ordered_levels) - 1) * 0.20)] if ordered_levels else 0
+        p80 = ordered_levels[int((len(ordered_levels) - 1) * 0.80)] if ordered_levels else 0
+        noise_floor = max(80.0, p20 * 1.6)
+        reference = max(1.0, p80)
         for length in (20, 30, 45, 60):
             if available < length:
                 continue
@@ -185,16 +193,26 @@ def analyze_audio_highlights(audio_path, duration, count):
                 avg = statistics.fmean(window)
                 peak = max(window)
                 variation = statistics.pstdev(window)
-                # La duración mayor solo gana si mantiene actividad a lo largo
-                # del fragmento; se evita premiar clips largos por longitud sola.
-                active_ratio = sum(1 for v in window if v >= avg * 0.75) / length if avg else 0
-                score = avg + 0.35 * peak + 0.25 * variation + 0.15 * active_ratio * avg
+                active_ratio = sum(1 for v in window if v > noise_floor) / length
+                # Energía + picos + actividad sostenida; es una heurística de
+                # audio, no una comprensión semántica de lo que se dice.
+                energy_score = min(1.5, avg / reference)
+                peak_score = min(2.0, peak / reference)
+                variation_score = min(1.0, variation / reference)
+                silence_penalty = max(0.0, 0.35 - active_ratio)
+                length_bonus = 0.04 if length in (30, 45) else 0.0
+                score = (0.42 * energy_score + 0.18 * peak_score +
+                         0.28 * active_ratio + 0.12 * variation_score +
+                         length_bonus - silence_penalty)
                 candidates.append((score, start, length))
         candidates.sort(reverse=True)
         chosen = []
+        # Dejar un pequeño margen entre clips reduce repeticiones de la misma
+        # conversación y evita cortes pegados unos a otros.
+        min_gap = 10
         for score, start, length in candidates:
             end = start + length
-            if all(end <= prior_start or start >= prior_end
+            if all(end + min_gap <= prior_start or start >= prior_end + min_gap
                    for prior_start, prior_end in chosen):
                 chosen.append((start, end))
                 if len(chosen) >= count:
