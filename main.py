@@ -86,7 +86,7 @@ form.addEventListener("submit",async e=>{
    if(state.status==="done"){
     finished=true;
     renderClips(state,true);
-   }else if(!state.clips||state.clips.length===0){
+   }else if(renderedClipCount===0&&(!state.clips||state.clips.length===0)){
     result.textContent=state.message||"Procesando vídeo…";
    }
   }
@@ -356,7 +356,12 @@ def process_job(job_id, url, count):
                         completed, total, active_index, active_item["percent"],
                         active_item["mb"], speed_text
                     )
-                JOBS[job_id] = {"status": "processing", "message": message, "clips": []}
+                current = JOBS.get(job_id, {})
+                JOBS[job_id] = {
+                    "status": "processing",
+                    "message": message,
+                    "clips": list(current.get("clips") or [])
+                }
 
         def download_one(index, clip_range):
             output_template = str(source_dir / ("source_%02d.%%(ext)s" % index))
