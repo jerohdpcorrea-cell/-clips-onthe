@@ -133,7 +133,7 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "processing", "message": "Descargando vídeo…", "clips": []}
         options = {
-            "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "format": "best[height<=360][ext=mp4]/best[height<=360]",
             "outtmpl": str(folder / "source.%(ext)s"),
             "noplaylist": True,
             "quiet": True,
@@ -188,6 +188,7 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "done", "message": "Clips listos.", "clips": clips}
     except Exception as exc:
+        print(f"CLIPS.ONTHE job {job_id} failed: {type(exc).__name__}: {exc}", flush=True)
         shutil.rmtree(folder, ignore_errors=True)
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "failed", "message": "No se pudo procesar el vídeo.", "error": safe_error(exc), "clips": []}
