@@ -53,10 +53,17 @@ footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
+let renderedClipCount=0;
 function renderClips(state,done=false){
  const clips=state.clips||[];
+ if(clips.length===renderedClipCount){
+  const status=result.querySelector(".progress-message");
+  if(status)status.textContent=done?"¡Listo! Todos tus clips están preparados.":(state.message||"Procesando…");
+  return;
+ }
  const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
- result.innerHTML=(done?"<p class='ok'>¡Listo! Todos tus clips están preparados.</p>":"<p class='ok'>"+(clips.length?"Ya puedes reproducir y descargar los clips que van saliendo.":"")+"</p><p class='muted'>"+(state.message||"Procesando…")+"</p>")+cards;
+ renderedClipCount=clips.length;
+ result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?"¡Listo! Todos tus clips están preparados.":(state.message||"Procesando…"))+"</p>"+cards;
 }
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;result.textContent="Enviando vídeo para procesar…";
