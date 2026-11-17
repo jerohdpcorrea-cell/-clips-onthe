@@ -231,8 +231,8 @@ def process_job(job_id, url, count):
             }
 
         downloaded_sources = {}
-        # Tres descargas simultáneas reducen la espera sin saturar el servidor gratuito.
-        with ThreadPoolExecutor(max_workers=min(3, total)) as pool:
+        # Dos descargas simultáneas equilibran velocidad y memoria del plan gratuito.
+        with ThreadPoolExecutor(max_workers=min(2, total)) as pool:
             futures = [
                 pool.submit(download_one, index, clip_range)
                 for index, clip_range in enumerate(ranges, start=1)
@@ -302,7 +302,7 @@ def health():
     return {"status": "ok", "service": "CLIPS.ONTHE"}
 
 @app.post("/api/clips")
-def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(20)):
+def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5)):
     global ACTIVE_JOB
     cleanup_old_jobs()
     if count not in (5, 10, 20):
@@ -316,7 +316,12 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
             raise HTTPException(429, "Ya hay un vídeo procesándose. Espera a que termine.")
         ACTIVE_JOB = True
     job_id = uuid.uuid4().hex
-    (BASE / job_id).mkdir(parents=True, exist_ok=False)
+    try:
+        (BASE / job_id).mkdir(parents=True, exist_ok=False)
+    except OSError:
+        with JOBS_LOCK:
+            ACTIVE_JOB = False
+        raise HTTPException(503, "No se pudo reservar espacio temporal. Inténtalo de nuevo.")
     with JOBS_LOCK:
         JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": []}
     background_tasks.add_task(process_job, job_id, url, count)
