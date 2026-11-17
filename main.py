@@ -21,7 +21,8 @@ app = FastAPI(title="CLIPS.ONTHE", version="2.0.0")
 
 BASE = Path("/tmp/clips-onthe")
 BASE.mkdir(parents=True, exist_ok=True)
-MAX_DOWNLOAD_BYTES = 650 * 1024 * 1024
+MAX_DOWNLOAD_BYTES = 160 * 1024 * 1024
+MAX_AUDIO_ANALYSIS_SECONDS = 20 * 60
 MAX_VIDEO_SECONDS = 6 * 60 * 60
 MIN_CLIP_SECONDS = 20
 MAX_CLIP_SECONDS = 60
@@ -61,9 +62,10 @@ async function readJson(response){const raw=await response.text();if(!raw.trim()
 let renderedClipCount=0;
 function renderClips(state,done=false){
  const clips=state.clips||[];
+ const finalMessage=state.status==="partial"?(state.message||"Se generaron clips parciales."):"¡Listo! Todos tus clips están preparados.";
  if(clips.length===renderedClipCount){
   const status=result.querySelector(".progress-message");
-  if(status)status.textContent=done?"¡Listo! Todos tus clips están preparados.":(state.message||"Procesando…");
+  if(status)status.textContent=done?finalMessage:(state.message||"Procesando…");
   return;
  }
  const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
@@ -82,11 +84,16 @@ form.addEventListener("submit",async e=>{
    const check=await fetch("/api/jobs/"+encodeURIComponent(data.job_id));
    const state=await readJson(check);if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");
    if(state.status==="failed")throw new Error(state.error||"No se pudo procesar el vídeo.");
-   renderClips(state);
+   if(state.status==="partial"){
+    renderClips(state,true);
+    finished=true;
+   }else{
+    renderClips(state);
+   }
    if(state.status==="done"){
     finished=true;
     renderClips(state,true);
-   }else if(renderedClipCount===0&&(!state.clips||state.clips.length===0)){
+   }else if(state.status!=="partial"&&renderedClipCount===0&&(!state.clips||state.clips.length===0)){
     result.textContent=state.message||"Procesando vídeo…";
    }
   }
@@ -235,6 +242,7 @@ def process_job(job_id, url, count):
     global ACTIVE_JOB
     folder = BASE / job_id
     source_dir = folder / "source"
+    clips = []
     try:
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
@@ -260,13 +268,17 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {
                 "status": "processing",
-                "message": "Analizando audio para elegir momentos de 20 a 60 segundos…",
+                "message": ("Analizando audio para elegir momentos de 20 a 60 segundos…"
+                            if duration <= MAX_AUDIO_ANALYSIS_SECONDS else
+                            "Vídeo largo: preparando selección distribuida para evitar una descarga de audio interminable…"),
                 "clips": []
             }
         audio_template = str(source_dir / "full_audio.%(ext)s")
         ranges = []
         audio_files = []
         try:
+            if duration > MAX_AUDIO_ANALYSIS_SECONDS:
+                raise RuntimeError("audio-analysis-too-long")
             audio_options = {
                 # Preferir la pista de audio de menor tamaño para evitar bajar
                 # una variante HLS enorme cuando Kick publica estimaciones erróneas.
@@ -296,8 +308,14 @@ def process_job(job_id, url, count):
             print("CLIPS.ONTHE audio analysis unavailable for %s: %s: %s" % (
                 job_id, type(audio_exc).__name__, audio_exc
             ), flush=True)
-            # El fallo del análisis no debe impedir generar clips: usar puntos
-            # repartidos por el vídeo como alternativa automática.
+            # El fallo o el límite de duración del análisis no debe impedir
+            # generar clips: usar puntos repartidos por todo el vídeo.
+            with JOBS_LOCK:
+                JOBS[job_id] = {
+                    "status": "processing",
+                    "message": "Análisis de audio omitido o no disponible. Seleccionando momentos repartidos por el vídeo…",
+                    "clips": []
+                }
             fallback_length = min(30, max(MIN_CLIP_SECONDS, int(duration / max(1, total))))
             available = max(0.0, duration - fallback_length)
             ranges = []
@@ -452,13 +470,15 @@ def process_job(job_id, url, count):
             }
     except Exception as exc:
         print("CLIPS.ONTHE job %s failed: %s: %s" % (job_id, type(exc).__name__, exc), flush=True)
-        shutil.rmtree(folder, ignore_errors=True)
+        shutil.rmtree(source_dir, ignore_errors=True)
+        has_partial_clips = bool(clips)
         with JOBS_LOCK:
             JOBS[job_id] = {
-                "status": "failed",
-                "message": "No se pudo procesar el vídeo.",
+                "status": "partial" if has_partial_clips else "failed",
+                "message": ("Se generaron %d clips antes de un problema. Puedes descargarlos; no se borraron." % len(clips)
+                            if has_partial_clips else "No se pudo procesar el vídeo."),
                 "error": safe_error(exc),
-                "clips": []
+                "clips": list(clips)
             }
     finally:
         with JOBS_LOCK:
