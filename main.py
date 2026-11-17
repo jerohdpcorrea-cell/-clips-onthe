@@ -45,7 +45,7 @@ button{margin-top:18px;background:linear-gradient(100deg,#7c3aed,#a855f7);color:
 #result{margin-top:18px;line-height:1.55;overflow-wrap:anywhere}.muted{color:#aaa3bd;font-size:13px}.clip-card{padding:15px 0;border-top:1px solid #393249}.clip-card h3{margin:4px 0 10px;font-size:16px}.clip-card video{display:block;width:100%;max-height:520px;background:#000;border-radius:12px}.download{display:inline-block;margin-top:10px;color:#d6c4ff;font-weight:700;text-decoration:none}.error{color:#ffb4b4}.ok{color:#b7f7ca}
 footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </style></head><body><main>
-<h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Convierte vídeos en clips verticales listos para compartir.</p>
+<h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Encuentra momentos destacados analizando la intensidad del audio y crea clips verticales.</p>
 <section class="panel"><form id="form">
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
@@ -139,7 +139,7 @@ def analyze_audio_highlights(audio_path, duration, count):
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
         "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000",
         "-c:a", "pcm_s16le", str(wav_path)
-    ], capture_output=True, check=True, timeout=240)
+    ], capture_output=True, check=True, timeout=900)
     try:
         levels = []
         with wave.open(str(wav_path), "rb") as wav:
