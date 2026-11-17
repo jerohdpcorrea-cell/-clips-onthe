@@ -23,7 +23,8 @@ BASE = Path("/tmp/clips-onthe")
 BASE.mkdir(parents=True, exist_ok=True)
 MAX_DOWNLOAD_BYTES = 650 * 1024 * 1024
 MAX_VIDEO_SECONDS = 6 * 60 * 60
-CLIP_SECONDS = 15
+MIN_CLIP_SECONDS = 20
+MAX_CLIP_SECONDS = 60
 MAX_STORAGE_BYTES = 1500 * 1024 * 1024
 JOB_TTL_SECONDS = 8 * 60 * 60
 ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "kick.com", "www.kick.com"}
@@ -45,7 +46,7 @@ button{margin-top:18px;background:linear-gradient(100deg,#7c3aed,#a855f7);color:
 #result{margin-top:18px;line-height:1.55;overflow-wrap:anywhere}.muted{color:#aaa3bd;font-size:13px}.clip-card{padding:15px 0;border-top:1px solid #393249}.clip-card h3{margin:4px 0 10px;font-size:16px}.clip-card video{display:block;width:100%;max-height:520px;background:#000;border-radius:12px}.download{display:inline-block;margin-top:10px;color:#d6c4ff;font-weight:700;text-decoration:none}.error{color:#ffb4b4}.ok{color:#b7f7ca}
 footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </style></head><body><main>
-<h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Encuentra momentos destacados analizando la intensidad del audio y crea clips verticales.</p>
+<h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Clips inteligentes para TikTok: momentos de 20 a 60 segundos y encuadre vertical sin perder la escena.</p>
 <section class="panel"><form id="form">
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
@@ -138,7 +139,7 @@ def download_size_guard(data):
 
 
 def analyze_audio_highlights(audio_path, duration, count):
-    """Rank 15-second windows by loudness and changes in audio energy."""
+    """Select non-overlapping 20-60s windows using audio activity as a free heuristic."""
     wav_path = audio_path.with_suffix(".analysis.wav")
     subprocess.run([
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -162,37 +163,50 @@ def analyze_audio_highlights(audio_path, duration, count):
                     samples.byteswap()
                 square_mean = sum(int(v) * int(v) for v in samples) / len(samples)
                 levels.append(math.sqrt(square_mean))
-        if len(levels) < CLIP_SECONDS:
+        if len(levels) < MIN_CLIP_SECONDS:
             raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
-        step = 5
         candidates = []
-        last_start = max(0, min(len(levels), int(duration)) - CLIP_SECONDS)
-        for start in range(0, last_start + 1, step):
-            window = levels[start:start + CLIP_SECONDS]
-            if len(window) < CLIP_SECONDS:
+        step = 5
+        available = min(len(levels), int(duration))
+        for length in (20, 30, 45, 60):
+            if available < length:
                 continue
-            avg = statistics.fmean(window)
-            peak = max(window)
-            variation = statistics.pstdev(window)
-            score = avg + 0.35 * peak + 0.25 * variation
-            candidates.append((score, start))
+            for start in range(0, available - length + 1, step):
+                window = levels[start:start + length]
+                if len(window) != length:
+                    continue
+                avg = statistics.fmean(window)
+                peak = max(window)
+                variation = statistics.pstdev(window)
+                # La duración mayor solo gana si mantiene actividad a lo largo
+                # del fragmento; se evita premiar clips largos por longitud sola.
+                active_ratio = sum(1 for v in window if v >= avg * 0.75) / length if avg else 0
+                score = avg + 0.35 * peak + 0.25 * variation + 0.15 * active_ratio * avg
+                candidates.append((score, start, length))
         candidates.sort(reverse=True)
         chosen = []
-        for score, start in candidates:
-            if all(abs(start - prior) >= CLIP_SECONDS + 10 for prior in chosen):
-                chosen.append(start)
+        for score, start, length in candidates:
+            end = start + length
+            if all(end <= prior_start or start >= prior_end
+                   for prior_start, prior_end in chosen):
+                chosen.append((start, end))
                 if len(chosen) >= count:
                     break
         if len(chosen) < count:
-            for score, start in candidates:
-                if start not in chosen:
-                    chosen.append(start)
+            for score, start, length in candidates:
+                end = start + length
+                if (start, end) not in chosen and all(
+                    end <= prior_start or start >= prior_end
+                    for prior_start, prior_end in chosen
+                ):
+                    chosen.append((start, end))
                     if len(chosen) >= count:
                         break
+        chosen.sort()
         return [
-            {"start_time": float(start), "end_time": float(start + CLIP_SECONDS),
-             "title": "Momento destacado %d" % (i + 1)}
-            for i, start in enumerate(chosen)
+            {"start_time": float(start), "end_time": float(end),
+             "title": "Momento destacado %d (%ds)" % (i + 1, end - start)}
+            for i, (start, end) in enumerate(chosen)
         ]
     finally:
         try:
@@ -236,17 +250,17 @@ def process_job(job_id, url, count):
         duration = float(info.get("duration") or 0)
         if info.get("is_live") or info.get("live_status") in ("is_live", "is_upcoming"):
             raise RuntimeError("No se pueden procesar directos que todavía están en emisión.")
-        if duration <= CLIP_SECONDS:
+        if duration < MIN_CLIP_SECONDS:
             raise RuntimeError("El vídeo es demasiado corto para crear clips.")
         if duration > MAX_VIDEO_SECONDS:
             raise RuntimeError("duration")
 
-        total = min(count, max(1, int(duration // CLIP_SECONDS)))
+        total = min(count, max(1, int(duration // MIN_CLIP_SECONDS)))
         source_dir.mkdir(parents=True, exist_ok=True)
         with JOBS_LOCK:
             JOBS[job_id] = {
                 "status": "processing",
-                "message": "Analizando el audio completo para encontrar momentos destacados…",
+                "message": "Analizando audio para elegir momentos de 20 a 60 segundos…",
                 "clips": []
             }
         audio_template = str(source_dir / "full_audio.%(ext)s")
@@ -274,7 +288,7 @@ def process_job(job_id, url, count):
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Detectando picos de emoción y cambios de intensidad…",
+                    "message": "Detectando momentos activos y su duración ideal…",
                     "clips": []
                 }
             ranges = analyze_audio_highlights(audio_files[0], duration, total)
@@ -284,14 +298,15 @@ def process_job(job_id, url, count):
             ), flush=True)
             # El fallo del análisis no debe impedir generar clips: usar puntos
             # repartidos por el vídeo como alternativa automática.
-            available = max(0.0, duration - CLIP_SECONDS)
+            fallback_length = min(30, max(MIN_CLIP_SECONDS, int(duration / max(1, total))))
+            available = max(0.0, duration - fallback_length)
             ranges = []
             for i in range(total):
                 start_time = available * (i + 1) / (total + 1)
                 ranges.append({
                     "start_time": float(start_time),
-                    "end_time": float(start_time + CLIP_SECONDS),
-                    "title": "Momento del vídeo %d" % (i + 1)
+                    "end_time": float(start_time + fallback_length),
+                    "title": "Momento del vídeo %d (%ds)" % (i + 1, fallback_length)
                 })
         finally:
             for audio_file in audio_files:
@@ -397,8 +412,13 @@ def process_job(job_id, url, count):
             output = folder / filename
             subprocess.run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(source), "-t", str(CLIP_SECONDS),
-                "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
+                "-i", str(source), "-t", str(max(1, clip_range["end_time"] - clip_range["start_time"])),
+                "-filter_complex",
+                "[0:v]split=2[bg][fg];"
+                "[bg]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=24:8[bg];"
+                "[fg]scale=720:1280:force_original_aspect_ratio=decrease[fg];"
+                "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]",
+                "-map", "[v]", "-map", "0:a?",
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21",
                 "-threads", "1", "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart", str(output)
