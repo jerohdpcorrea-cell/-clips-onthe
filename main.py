@@ -10,6 +10,8 @@ import math
 import array
 import statistics
 import html
+import json
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -320,6 +322,58 @@ def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
         return False
 
 
+
+def build_face_crop_filter(source_path):
+    """Build a smoothed, low-resolution face-follow crop; return empty on uncertainty."""
+    try:
+        tracker = Path(__file__).with_name("face_tracker.py")
+        result = subprocess.run(
+            [sys.executable, str(tracker), str(source_path)],
+            capture_output=True, text=True, timeout=50
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return ""
+        data = json.loads(result.stdout)
+        width = int(data.get("width") or 0)
+        height = int(data.get("height") or 0)
+        centers = data.get("centers") or []
+        if width < 2 or height < 2 or len(centers) < 3:
+            return ""
+        crop_height = height - (height % 2)
+        crop_width = int(crop_height * 9 / 16)
+        crop_width -= crop_width % 2
+        if crop_width < 2 or width <= crop_width + 4:
+            return ""
+        raw_x = [
+            max(0.0, min(float(width - crop_width), float(item["x"]) - crop_width / 2))
+            for item in centers
+        ]
+        smooth_x = []
+        for index in range(len(raw_x)):
+            nearby = raw_x[max(0, index - 1):min(len(raw_x), index + 2)]
+            smooth_x.append(sum(nearby) / len(nearby))
+        expression = "%.2f" % smooth_x[-1]
+        for index in range(len(smooth_x) - 2, -1, -1):
+            t0 = float(centers[index]["t"])
+            t1 = float(centers[index + 1]["t"])
+            span = max(0.01, t1 - t0)
+            x0, x1 = smooth_x[index], smooth_x[index + 1]
+            interpolation = "(%.2f+(%.2f)*(t-%.3f)/%.3f)" % (
+                x0, x1 - x0, t0, span
+            )
+            expression = "if(lt(t\\,%.3f)\\,%s\\,%s)" % (t1, interpolation, expression)
+        first_time = float(centers[0]["t"])
+        expression = "if(lt(t\\,%.3f)\\,%.2f\\,%s)" % (
+            first_time, smooth_x[0], expression
+        )
+        return "crop=%d:%d:'%s':0:eval=frame," % (
+            crop_width, crop_height, expression
+        )
+    except Exception as face_exc:
+        print("CLIPS.ONTHE face tracking unavailable: %s" % face_exc, flush=True)
+        return ""
+
+
 def safe_error(exc):
     msg = str(exc).lower()
     if "not a bot" in msg or "sign in to confirm" in msg:
@@ -547,10 +601,13 @@ def process_job(job_id, url, count):
             has_subtitles = write_clip_srt(
                 caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
             )
+            face_crop = build_face_crop_filter(source)
+            if face_crop:
+                print("CLIPS.ONTHE face-follow crop enabled for %s clip %d" % (job_id, i), flush=True)
             video_filter = (
                 "[0:v]split=2[bg][fg];"
                 "[bg]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=24:8[bg];"
-                "[fg]scale=720:1280:force_original_aspect_ratio=decrease[fg];"
+                "[fg]" + face_crop + "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
                 "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
             )
             if has_subtitles:
