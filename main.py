@@ -38,7 +38,7 @@ main{max-width:680px;margin:5vh auto}.brand{font-size:clamp(34px,8vw,54px);font-
 label{display:block;font-size:14px;color:#d8d3e8;margin:14px 0 8px}input,select,button{width:100%;border-radius:12px;padding:15px;font-size:16px}
 input,select{background:#0e0d17;color:white;border:1px solid #49405e;outline:none}input:focus,select:focus{border-color:#a78bfa}
 button{margin-top:18px;background:linear-gradient(100deg,#7c3aed,#a855f7);color:white;border:0;font-weight:800;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
-#result{margin-top:18px;line-height:1.55;overflow-wrap:anywhere}.muted{color:#aaa3bd;font-size:13px}.clip{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-top:1px solid #393249}.clip a{color:#d6c4ff;font-weight:700}.error{color:#ffb4b4}.ok{color:#b7f7ca}
+#result{margin-top:18px;line-height:1.55;overflow-wrap:anywhere}.muted{color:#aaa3bd;font-size:13px}.clip-card{padding:15px 0;border-top:1px solid #393249}.clip-card h3{margin:4px 0 10px;font-size:16px}.clip-card video{display:block;width:100%;max-height:520px;background:#000;border-radius:12px}.download{display:inline-block;margin-top:10px;color:#d6c4ff;font-weight:700;text-decoration:none}.error{color:#ffb4b4}.ok{color:#b7f7ca}
 footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </style></head><body><main>
 <h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Convierte vídeos en clips verticales listos para compartir.</p>
@@ -53,6 +53,11 @@ footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
+function renderClips(state,done=false){
+ const clips=state.clips||[];
+ const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
+ result.innerHTML=(done?"<p class='ok'>¡Listo! Todos tus clips están preparados.</p>":"<p class='ok'>"+(clips.length?"Ya puedes reproducir y descargar los clips que van saliendo.":"")+"</p><p class='muted'>"+(state.message||"Procesando…")+"</p>")+cards;
+}
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;result.textContent="Enviando vídeo para procesar…";
  try{
@@ -65,9 +70,13 @@ form.addEventListener("submit",async e=>{
    const check=await fetch("/api/jobs/"+encodeURIComponent(data.job_id));
    const state=await readJson(check);if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");
    if(state.status==="failed")throw new Error(state.error||"No se pudo procesar el vídeo.");
+   renderClips(state);
    if(state.status==="done"){
-    finished=true;result.innerHTML="<p class='ok'>¡Listo! Tus clips están preparados:</p>"+state.clips.map(c=>"<div class='clip'><span>"+c.name+"</span><a href='"+c.url+"' download>Descargar ↓</a></div>").join("");
-   }else{result.textContent=state.message||"Procesando vídeo…";}
+    finished=true;
+    renderClips(state,true);
+   }else if(!state.clips||state.clips.length===0){
+    result.textContent=state.message||"Procesando vídeo…";
+   }
   }
  }catch(err){result.innerHTML="<p class='error'>"+String(err.message).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p>";}
  finally{btn.disabled=false;}
@@ -249,7 +258,7 @@ def process_job(job_id, url, count):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Creando clip vertical %d/%d…" % (i, total),
-                    "clips": []
+                    "clips": list(clips)
                 }
 
             filename = "clip_%02d.mp4" % i
@@ -267,8 +276,8 @@ def process_job(job_id, url, count):
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Clips terminados: %d/%d" % (i, total),
-                    "clips": []
+                    "message": "Clip %d/%d listo. Puedes reproducirlo mientras se prepara el siguiente." % (i, total),
+                    "clips": list(clips)
                 }
             if folder_size(BASE) > MAX_STORAGE_BYTES:
                 raise RuntimeError("Se alcanzó el límite temporal de almacenamiento. Inténtalo con menos clips.")
