@@ -366,7 +366,7 @@ def build_face_crop_filter(source_path):
         expression = "if(lt(t\\,%.3f)\\,%.2f\\,%s)" % (
             first_time, smooth_x[0], expression
         )
-        return "crop=%d:%d:'%s':0:eval=frame," % (
+        return "crop=%d:%d:'%s':0," % (
             crop_width, crop_height, expression
         )
     except Exception as face_exc:
