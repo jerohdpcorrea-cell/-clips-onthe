@@ -183,6 +183,8 @@ def analyze_audio_highlights(audio_path, duration, count):
         ordered_levels = sorted(levels[:available])
         p20 = ordered_levels[int((len(ordered_levels) - 1) * 0.20)] if ordered_levels else 0
         p80 = ordered_levels[int((len(ordered_levels) - 1) * 0.80)] if ordered_levels else 0
+        if p80 < 120:
+            raise RuntimeError("No se detectó suficiente actividad de audio.")
         noise_floor = max(80.0, p20 * 1.6)
         reference = max(1.0, p80)
         for length in (20, 30, 45, 60):
@@ -337,7 +339,12 @@ def build_face_crop_filter(source_path):
         width = int(data.get("width") or 0)
         height = int(data.get("height") or 0)
         centers = data.get("centers") or []
+        face_sizes = [float(item.get("size") or 0) for item in centers]
         if width < 2 or height < 2 or len(centers) < 3:
+            return ""
+        # No acercar una cámara facial pequeña dentro de una transmisión:
+        # se conserva la escena completa para no ocultar el juego o contexto.
+        if not face_sizes or statistics.median(face_sizes) < 0.08:
             return ""
         crop_height = height - (height % 2)
         crop_width = int(crop_height * 9 / 16)
