@@ -127,8 +127,9 @@ def download_size_guard(data):
     if data.get("status") != "downloading":
         return
     downloaded = data.get("downloaded_bytes") or 0
-    estimated = data.get("total_bytes") or data.get("total_bytes_estimate") or 0
-    if downloaded > MAX_DOWNLOAD_BYTES or estimated > MAX_DOWNLOAD_BYTES:
+    # No bloquear por estimaciones HLS: Kick puede reportar tamaños inflados.
+    # El límite se aplica únicamente a bytes realmente descargados.
+    if downloaded > MAX_DOWNLOAD_BYTES:
         raise yt_dlp.utils.DownloadError("max-filesize")
 
 
@@ -245,34 +246,61 @@ def process_job(job_id, url, count):
                 "clips": []
             }
         audio_template = str(source_dir / "full_audio.%(ext)s")
-        audio_options = {
-            "format": "bestaudio[ext=m4a]/bestaudio/best",
-            "outtmpl": audio_template,
-            "noplaylist": True, "quiet": True, "no_warnings": True,
-            "socket_timeout": 30, "retries": 2, "fragment_retries": 2,
-            "extractor_retries": 2, "concurrent_fragment_downloads": 1,
-            "max_filesize": MAX_DOWNLOAD_BYTES,
-            "progress_hooks": [download_size_guard],
-        }
-        with yt_dlp.YoutubeDL(audio_options) as ydl:
-            ydl.download([url])
-        audio_files = [
-            p for p in source_dir.glob("full_audio.*")
-            if p.is_file() and not p.name.endswith(".analysis.wav")
-        ]
-        if not audio_files:
-            raise RuntimeError("No se pudo descargar el audio para analizar los momentos.")
-        with JOBS_LOCK:
-            JOBS[job_id] = {
-                "status": "processing",
-                "message": "Detectando picos de emoción, cambios de intensidad y momentos interesantes…",
-                "clips": []
-            }
-        ranges = analyze_audio_highlights(audio_files[0], duration, total)
+        ranges = []
+        audio_files = []
         try:
-            audio_files[0].unlink(missing_ok=True)
-        except OSError:
-            pass
+            audio_options = {
+                # Preferir la pista de audio de menor tamaño para evitar bajar
+                # una variante HLS enorme cuando Kick publica estimaciones erróneas.
+                "format": "worstaudio[ext=m4a]/worstaudio/bestaudio[ext=m4a]/bestaudio/best",
+                "outtmpl": audio_template,
+                "noplaylist": True, "quiet": True, "no_warnings": True,
+                "socket_timeout": 30, "retries": 2, "fragment_retries": 2,
+                "extractor_retries": 2, "concurrent_fragment_downloads": 1,
+                "progress_hooks": [download_size_guard],
+            }
+            with yt_dlp.YoutubeDL(audio_options) as ydl:
+                ydl.download([url])
+            audio_files = [
+                p for p in source_dir.glob("full_audio.*")
+                if p.is_file() and not p.name.endswith(".analysis.wav")
+            ]
+            if not audio_files:
+                raise RuntimeError("No se pudo descargar el audio para analizar los momentos.")
+            with JOBS_LOCK:
+                JOBS[job_id] = {
+                    "status": "processing",
+                    "message": "Detectando picos de emoción y cambios de intensidad…",
+                    "clips": []
+                }
+            ranges = analyze_audio_highlights(audio_files[0], duration, total)
+        except Exception as audio_exc:
+            print("CLIPS.ONTHE audio analysis unavailable for %s: %s: %s" % (
+                job_id, type(audio_exc).__name__, audio_exc
+            ), flush=True)
+            # El fallo del análisis no debe impedir generar clips: usar puntos
+            # repartidos por el vídeo como alternativa automática.
+            available = max(0.0, duration - CLIP_SECONDS)
+            ranges = []
+            for i in range(total):
+                start_time = available * (i + 1) / (total + 1)
+                ranges.append({
+                    "start_time": float(start_time),
+                    "end_time": float(start_time + CLIP_SECONDS),
+                    "title": "Momento del vídeo %d" % (i + 1)
+                })
+        finally:
+            for audio_file in audio_files:
+                try:
+                    audio_file.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            for partial in source_dir.glob("full_audio.*"):
+                try:
+                    partial.unlink(missing_ok=True)
+                except OSError:
+                    pass
+
         progress = {i + 1: {"done": False, "percent": 0, "mb": 0, "speed": 0} for i in range(total)}
 
         def update_progress(index, data):
