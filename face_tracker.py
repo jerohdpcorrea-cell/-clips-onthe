@@ -43,17 +43,17 @@ def main(path):
         for x, y, face_w, face_h in faces:
             center_x = (float(x) + float(face_w) / 2.0) / scale
             area = float(face_w * face_h)
-            choices.append((center_x, area))
+            choices.append((center_x, area, float(face_w) / 320.0))
         if previous_x is None:
-            chosen_x, _ = max(choices, key=lambda item: item[1])
+            chosen_x, _, chosen_size = max(choices, key=lambda item: item[1])
         else:
-            nearest_x, nearest_area = min(choices, key=lambda item: abs(item[0] - previous_x))
+            nearest_x, nearest_area, nearest_size = min(choices, key=lambda item: abs(item[0] - previous_x))
             if abs(nearest_x - previous_x) <= width * 0.30:
-                chosen_x = nearest_x
+                chosen_x, chosen_size = nearest_x, nearest_size
             else:
-                chosen_x, _ = max(choices, key=lambda item: item[1])
+                chosen_x, _, chosen_size = max(choices, key=lambda item: item[1])
         previous_x = chosen_x
-        centers.append({"t": float(second), "x": float(chosen_x)})
+        centers.append({"t": float(second), "x": float(chosen_x), "size": chosen_size})
     cap.release()
     if len(centers) < max(3, int(len(sample_times) * 0.12)):
         return
