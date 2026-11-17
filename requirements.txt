@@ -3,3 +3,4 @@ fastapi
 uvicorn
 python-multipart
 yt-dlp[default]
+opencv-python-headless==4.10.0.84
