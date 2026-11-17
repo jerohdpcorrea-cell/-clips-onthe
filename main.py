@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import yt_dlp
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
 app = FastAPI(title="CLIPS.ONTHE", version="2.0.0")
@@ -191,7 +191,7 @@ def health():
     return {"status": "ok", "service": "CLIPS.ONTHE"}
 
 @app.post("/api/clips")
-def create_clips(url: str = Form(...), count: int = Form(20)):
+def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(20)):
     global ACTIVE_JOB
     cleanup_old_jobs()
     if count not in (5, 10, 20):
@@ -206,9 +206,10 @@ def create_clips(url: str = Form(...), count: int = Form(20)):
         ACTIVE_JOB = True
     job_id = uuid.uuid4().hex
     (BASE / job_id).mkdir(parents=True, exist_ok=False)
-    from fastapi import BackgroundTasks
-    # FastAPI injects BackgroundTasks when declared as a parameter; this fallback is not used.
-    return JSONResponse({"detail": "Error interno al iniciar el trabajo."}, status_code=500)
+    with JOBS_LOCK:
+        JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": []}
+    background_tasks.add_task(process_job, job_id, url, count)
+    return {"job_id": job_id, "status": "queued"}
 
 @app.get("/api/jobs/{job_id}")
 def job_status(job_id: str):
