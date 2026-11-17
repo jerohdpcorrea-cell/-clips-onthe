@@ -5,6 +5,10 @@ import shutil
 import threading
 import subprocess
 import time
+import wave
+import math
+import array
+import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -128,6 +132,70 @@ def download_size_guard(data):
         raise yt_dlp.utils.DownloadError("max-filesize")
 
 
+def analyze_audio_highlights(audio_path, duration, count):
+    """Rank 15-second windows by loudness and changes in audio energy."""
+    wav_path = audio_path.with_suffix(".analysis.wav")
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+        "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000",
+        "-c:a", "pcm_s16le", str(wav_path)
+    ], capture_output=True, check=True, timeout=240)
+    try:
+        levels = []
+        with wave.open(str(wav_path), "rb") as wav:
+            sample_rate = wav.getframerate()
+            while True:
+                raw = wav.readframes(sample_rate)
+                if not raw:
+                    break
+                samples = array.array("h")
+                samples.frombytes(raw)
+                if not samples:
+                    levels.append(0.0)
+                    continue
+                if os.sys.byteorder != "little":
+                    samples.byteswap()
+                square_mean = sum(int(v) * int(v) for v in samples) / len(samples)
+                levels.append(math.sqrt(square_mean))
+        if len(levels) < CLIP_SECONDS:
+            raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
+        step = 5
+        candidates = []
+        last_start = max(0, min(len(levels), int(duration)) - CLIP_SECONDS)
+        for start in range(0, last_start + 1, step):
+            window = levels[start:start + CLIP_SECONDS]
+            if len(window) < CLIP_SECONDS:
+                continue
+            avg = statistics.fmean(window)
+            peak = max(window)
+            variation = statistics.pstdev(window)
+            score = avg + 0.35 * peak + 0.25 * variation
+            candidates.append((score, start))
+        candidates.sort(reverse=True)
+        chosen = []
+        for score, start in candidates:
+            if all(abs(start - prior) >= CLIP_SECONDS + 10 for prior in chosen):
+                chosen.append(start)
+                if len(chosen) >= count:
+                    break
+        if len(chosen) < count:
+            for score, start in candidates:
+                if start not in chosen:
+                    chosen.append(start)
+                    if len(chosen) >= count:
+                        break
+        return [
+            {"start_time": float(start), "end_time": float(start + CLIP_SECONDS),
+             "title": "Momento destacado %d" % (i + 1)}
+            for i, start in enumerate(chosen)
+        ]
+    finally:
+        try:
+            wav_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def safe_error(exc):
     msg = str(exc).lower()
     if "not a bot" in msg or "sign in to confirm" in msg:
@@ -169,16 +237,42 @@ def process_job(job_id, url, count):
             raise RuntimeError("duration")
 
         total = min(count, max(1, int(duration // CLIP_SECONDS)))
-        ranges = []
-        for i in range(total):
-            start_time = max(0, (duration - CLIP_SECONDS) * i / max(1, total - 1))
-            ranges.append({
-                "start_time": start_time,
-                "end_time": min(duration, start_time + CLIP_SECONDS),
-                "title": "Clip %d" % (i + 1),
-            })
-
         source_dir.mkdir(parents=True, exist_ok=True)
+        with JOBS_LOCK:
+            JOBS[job_id] = {
+                "status": "processing",
+                "message": "Analizando el audio completo para encontrar momentos destacados…",
+                "clips": []
+            }
+        audio_template = str(source_dir / "full_audio.%(ext)s")
+        audio_options = {
+            "format": "bestaudio[ext=m4a]/bestaudio/best",
+            "outtmpl": audio_template,
+            "noplaylist": True, "quiet": True, "no_warnings": True,
+            "socket_timeout": 30, "retries": 2, "fragment_retries": 2,
+            "extractor_retries": 2, "concurrent_fragment_downloads": 1,
+            "max_filesize": MAX_DOWNLOAD_BYTES,
+            "progress_hooks": [download_size_guard],
+        }
+        with yt_dlp.YoutubeDL(audio_options) as ydl:
+            ydl.download([url])
+        audio_files = [
+            p for p in source_dir.glob("full_audio.*")
+            if p.is_file() and not p.name.endswith(".analysis.wav")
+        ]
+        if not audio_files:
+            raise RuntimeError("No se pudo descargar el audio para analizar los momentos.")
+        with JOBS_LOCK:
+            JOBS[job_id] = {
+                "status": "processing",
+                "message": "Detectando picos de emoción, cambios de intensidad y momentos interesantes…",
+                "clips": []
+            }
+        ranges = analyze_audio_highlights(audio_files[0], duration, total)
+        try:
+            audio_files[0].unlink(missing_ok=True)
+        except OSError:
+            pass
         progress = {i + 1: {"done": False, "percent": 0, "mb": 0, "speed": 0} for i in range(total)}
 
         def update_progress(index, data):
