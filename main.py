@@ -18,7 +18,7 @@ app = FastAPI(title="CLIPS.ONTHE", version="2.0.0")
 BASE = Path("/tmp/clips-onthe")
 BASE.mkdir(parents=True, exist_ok=True)
 MAX_DOWNLOAD_BYTES = 650 * 1024 * 1024
-MAX_VIDEO_SECONDS = 2 * 60 * 60
+MAX_VIDEO_SECONDS = 6 * 60 * 60
 CLIP_SECONDS = 15
 MAX_STORAGE_BYTES = 1500 * 1024 * 1024
 JOB_TTL_SECONDS = 8 * 60 * 60
@@ -141,7 +141,7 @@ def safe_error(exc):
     if "max-filesize" in msg or "file is larger" in msg:
         return "El vídeo supera el límite de tamaño de 650 MB."
     if "duration" in msg or "demasiado largo" in msg:
-        return "El vídeo supera el límite de duración de 2 horas."
+        return "El vídeo supera el límite de duración de 6 horas."
     return "No se pudo procesar el vídeo. Comprueba que el enlace sea público y vuelve a intentarlo."
 
 def process_job(job_id, url, count):
