@@ -101,6 +101,15 @@ def valid_source_url(raw):
     except Exception:
         return False
 
+def download_size_guard(data):
+    if data.get("status") != "downloading":
+        return
+    downloaded = data.get("downloaded_bytes") or 0
+    estimated = data.get("total_bytes") or data.get("total_bytes_estimate") or 0
+    if downloaded > MAX_DOWNLOAD_BYTES or estimated > MAX_DOWNLOAD_BYTES:
+        raise yt_dlp.utils.DownloadError("max-filesize")
+
+
 def safe_error(exc):
     msg = str(exc).lower()
     if "not a bot" in msg or "sign in to confirm" in msg:
@@ -134,6 +143,7 @@ def process_job(job_id, url, count):
             "fragment_retries": 2,
             "extractor_retries": 2,
             "max_filesize": MAX_DOWNLOAD_BYTES,
+            "progress_hooks": [download_size_guard],
             "match_filter": yt_dlp.utils.match_filter_func("!is_live & duration <= 7200"),
             "overwrites": True,
         }
