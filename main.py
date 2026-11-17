@@ -133,15 +133,10 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
 
-        # Primero obtenemos solo los metadatos; no descargamos el VOD completo.
         meta_options = {
-            "format": "best[height<=360][ext=mp4]/best[height<=360]/best",
-            "noplaylist": True,
-            "quiet": True,
-            "no_warnings": True,
-            "socket_timeout": 25,
-            "retries": 2,
-            "extractor_retries": 2,
+            "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "noplaylist": True, "quiet": True, "no_warnings": True,
+            "socket_timeout": 25, "retries": 2, "extractor_retries": 2,
         }
         with yt_dlp.YoutubeDL(meta_options) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -155,61 +150,58 @@ def process_job(job_id, url, count):
             raise RuntimeError("duration")
 
         total = min(count, max(1, int(duration // CLIP_SECONDS)))
-        clips = []
-
-        # Cada trabajo descarga únicamente un tramo de 15 segundos.
+        ranges = []
         for i in range(total):
             start_time = max(0, (duration - CLIP_SECONDS) * i / max(1, total - 1))
-            end_time = min(duration, start_time + CLIP_SECONDS)
-            segment_dir = folder / ("segment_%02d" % (i + 1))
-            segment_dir.mkdir(parents=True, exist_ok=True)
+            ranges.append({
+                "start_time": start_time,
+                "end_time": min(duration, start_time + CLIP_SECONDS),
+                "title": "Clip %d" % (i + 1),
+                "index": i + 1,
+            })
 
-            with JOBS_LOCK:
-                JOBS[job_id] = {
-                    "status": "processing",
-                    "message": "Descargando clip %d/%d…" % (i + 1, total),
-                    "clips": []
-                }
+        # Una sola extracción de la página y una sola sesión de descarga para todos los tramos.
+        source_dir = folder / "source"
+        source_dir.mkdir(parents=True, exist_ok=True)
 
-            def segment_size_guard(data):
-                if data.get("status") == "downloading" and (data.get("downloaded_bytes") or 0) > 150 * 1024 * 1024:
-                    raise yt_dlp.utils.DownloadError("segment-too-large")
+        def segment_size_guard(data):
+            if data.get("status") == "downloading" and (data.get("downloaded_bytes") or 0) > 200 * 1024 * 1024:
+                raise yt_dlp.utils.DownloadError("segment-too-large")
 
-            options = {
-                "format": "best[height<=360][ext=mp4]/best[height<=360]/best",
-                "outtmpl": str(segment_dir / "source.%(ext)s"),
-                "noplaylist": True,
-                "quiet": True,
-                "no_warnings": True,
-                "socket_timeout": 25,
-                "retries": 2,
-                "fragment_retries": 2,
-                "extractor_retries": 2,
-                "progress_hooks": [segment_size_guard],
-                "download_ranges": lambda info, ydl, a=start_time, b=end_time, n=i + 1: [{
-                    "start_time": a,
-                    "end_time": b,
-                    "title": "Clip %d" % n,
-                    "index": n
-                }],
-                "force_keyframes_at_cuts": True,
-                "external_downloader": {"m3u8": "ffmpeg"},
-                "overwrites": True,
+        with JOBS_LOCK:
+            JOBS[job_id] = {
+                "status": "processing",
+                "message": "Descargando %d fragmentos seleccionados en calidad HD…" % total,
+                "clips": []
             }
-            with yt_dlp.YoutubeDL(options) as ydl:
-                ydl.download([url])
 
-            sources = [p for p in segment_dir.rglob("*") if p.is_file() and not p.name.endswith((".part", ".ytdl"))]
-            if not sources:
-                raise RuntimeError("No se pudo descargar el tramo %d del vídeo." % (i + 1))
-            source = max(sources, key=lambda p: p.stat().st_size)
-            if source.stat().st_size == 0:
-                raise RuntimeError("La plataforma devolvió un fragmento vacío.")
+        options = {
+            "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "outtmpl": str(source_dir / "source_%(section_number)02d.%(ext)s"),
+            "noplaylist": True, "quiet": True, "no_warnings": True,
+            "socket_timeout": 25, "retries": 3, "fragment_retries": 3,
+            "extractor_retries": 2, "concurrent_fragment_downloads": 4,
+            "progress_hooks": [segment_size_guard],
+            "download_ranges": lambda info, ydl: ranges,
+            "force_keyframes_at_cuts": True,
+            "overwrites": True,
+        }
+        with yt_dlp.YoutubeDL(options) as ydl:
+            ydl.download([url])
 
+        sources = sorted(
+            [p for p in source_dir.glob("source_*") if p.is_file() and p.suffix.lower() in (".mp4", ".mkv", ".webm", ".ts")],
+            key=lambda p: p.name
+        )
+        if len(sources) < total:
+            raise RuntimeError("La plataforma solo entregó %d de %d fragmentos." % (len(sources), total))
+
+        clips = []
+        for i, source in enumerate(sources[:total]):
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Creando clip %d/%d…" % (i + 1, total),
+                    "message": "Mejorando calidad y creando clip %d/%d…" % (i + 1, total),
                     "clips": []
                 }
 
@@ -218,12 +210,11 @@ def process_job(job_id, url, count):
             subprocess.run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                 "-i", str(source), "-t", str(CLIP_SECONDS),
-                "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-                "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(output)
-            ], capture_output=True, check=True, timeout=180)
+                "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(output)
+            ], capture_output=True, check=True, timeout=240)
 
-            shutil.rmtree(segment_dir, ignore_errors=True)
             clips.append({"name": "Clip %d" % (i + 1), "url": "/download/%s/%s" % (job_id, filename)})
             with JOBS_LOCK:
                 JOBS[job_id] = {
@@ -234,8 +225,9 @@ def process_job(job_id, url, count):
             if folder_size(BASE) > MAX_STORAGE_BYTES:
                 raise RuntimeError("Se alcanzó el límite temporal de almacenamiento. Inténtalo con menos clips.")
 
+        shutil.rmtree(source_dir, ignore_errors=True)
         with JOBS_LOCK:
-            JOBS[job_id] = {"status": "done", "message": "Clips listos.", "clips": clips}
+            JOBS[job_id] = {"status": "done", "message": "Clips listos en calidad mejorada.", "clips": clips}
     except Exception as exc:
         print("CLIPS.ONTHE job %s failed: %s: %s" % (job_id, type(exc).__name__, exc), flush=True)
         shutil.rmtree(folder, ignore_errors=True)
