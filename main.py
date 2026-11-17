@@ -242,7 +242,7 @@ def analyze_audio_highlights(audio_path, duration, count):
 
 
 def parse_vtt_timestamp(value):
-    match = re.match(r"(?:(\\d+):)?(\\d{2}):(\\d{2})[.,](\\d{3})", value.strip())
+    match = re.match(r"(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})", value.strip())
     if not match:
         return None
     hours = int(match.group(1) or 0)
@@ -265,7 +265,7 @@ def download_source_captions(url, source_dir):
     with yt_dlp.YoutubeDL(options) as ydl:
         ydl.download([url])
     files = sorted(source_dir.glob("captions*.vtt"),
-                   key=lambda path: (0 if re.search(r"\\.es(?:[-.]|\\.)", path.name, re.I) else 1, path.name))
+                   key=lambda path: (0 if re.search(r"\.es(?:[-.]|\.)", path.name, re.I) else 1, path.name))
     return files[0] if files else None
 
 
@@ -280,7 +280,7 @@ def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
     cues = []
     i = 0
     while i < len(lines):
-        match = re.match(r"^\\s*((?:\\d{2}:)?\\d{2}:\\d{2}[.,]\\d{3})\\s+-->\\s+((?:\\d{2}:)?\\d{2}:\\d{2}[.,]\\d{3})", lines[i])
+        match = re.match(r"^\s*((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})\s+-->\s+((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})", lines[i])
         if not match:
             i += 1
             continue
@@ -294,7 +294,7 @@ def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
         text = " ".join(text_lines)
         text = re.sub(r"<[^>]+>", "", text)
         text = html.unescape(text)
-        text = re.sub(r"\\s+", " ", text).strip()
+        text = re.sub(r"\s+", " ", text).strip()
         if start is not None and end is not None and end > clip_start and start < clip_end and text:
             left = max(0.0, start - clip_start)
             right = min(clip_end - clip_start, end - clip_start)
@@ -314,7 +314,7 @@ def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
     try:
         with output_path.open("w", encoding="utf-8") as output:
             for index, (start, end, text) in enumerate(cues, 1):
-                output.write("%d\\n%s --> %s\\n%s\\n\\n" % (index, stamp(start), stamp(end), text))
+                output.write("%d\n%s --> %s\n%s\n\n" % (index, stamp(start), stamp(end), text))
         return True
     except OSError:
         return False
