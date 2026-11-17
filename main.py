@@ -52,17 +52,18 @@ footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 </section><footer>Procesamiento sujeto a disponibilidad y restricciones de la plataforma de origen.</footer>
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
+async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;result.textContent="Enviando vídeo para procesar…";
  try{
   const res=await fetch("/api/clips",{method:"POST",body:new FormData(form)});
-  const data=await res.json();if(!res.ok)throw new Error(data.detail||"No se pudo iniciar el trabajo.");
+  const data=await readJson(res);if(!res.ok)throw new Error(data.detail||"No se pudo iniciar el trabajo.");
   result.textContent="Trabajo iniciado. Preparando tus clips…";
   let finished=false;
   while(!finished){
    await new Promise(r=>setTimeout(r,3000));
    const check=await fetch("/api/jobs/"+encodeURIComponent(data.job_id));
-   const state=await check.json();if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");
+   const state=await readJson(check);if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");
    if(state.status==="failed")throw new Error(state.error||"No se pudo procesar el vídeo.");
    if(state.status==="done"){
     finished=true;result.innerHTML="<p class='ok'>¡Listo! Tus clips están preparados:</p>"+state.clips.map(c=>"<div class='clip'><span>"+c.name+"</span><a href='"+c.url+"' download>Descargar ↓</a></div>").join("");
@@ -207,7 +208,7 @@ def process_job(job_id, url, count):
                 "outtmpl": output_template,
                 "noplaylist": True, "quiet": True, "no_warnings": True,
                 "socket_timeout": 20, "retries": 2, "fragment_retries": 2,
-                "extractor_retries": 2, "concurrent_fragment_downloads": 2,
+                "extractor_retries": 2, "concurrent_fragment_downloads": 1,
                 "progress_hooks": [lambda data, clip_index=index: update_progress(clip_index, data)],
                 "download_ranges": lambda video_info, ydl: [clip_range],
                 "force_keyframes_at_cuts": True,
@@ -231,8 +232,8 @@ def process_job(job_id, url, count):
             }
 
         downloaded_sources = {}
-        # Dos descargas simultáneas equilibran velocidad y memoria del plan gratuito.
-        with ThreadPoolExecutor(max_workers=min(2, total)) as pool:
+        # Una sola descarga a la vez evita superar los 512 MB de RAM del plan gratuito.
+        with ThreadPoolExecutor(max_workers=1) as pool:
             futures = [
                 pool.submit(download_one, index, clip_range)
                 for index, clip_range in enumerate(ranges, start=1)
