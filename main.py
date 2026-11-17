@@ -5,6 +5,7 @@ import shutil
 import threading
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -45,7 +46,7 @@ footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
 <label for="count">¿Cuántos clips quieres?</label>
-<select id="count" name="count"><option value="5">5 clips</option><option value="10">10 clips</option><option value="20" selected>20 clips</option></select>
+<select id="count" name="count"><option value="5" selected>5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select>
 <button id="btn" type="submit">GENERAR CLIPS</button>
 </form><div id="result" aria-live="polite"></div>
 </section><footer>Procesamiento sujeto a disponibilidad y restricciones de la plataforma de origen.</footer>
@@ -129,6 +130,7 @@ def safe_error(exc):
 def process_job(job_id, url, count):
     global ACTIVE_JOB
     folder = BASE / job_id
+    source_dir = folder / "source"
     try:
         with JOBS_LOCK:
             JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
@@ -136,7 +138,7 @@ def process_job(job_id, url, count):
         meta_options = {
             "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
             "noplaylist": True, "quiet": True, "no_warnings": True,
-            "socket_timeout": 25, "retries": 2, "extractor_retries": 2,
+            "socket_timeout": 20, "retries": 2, "extractor_retries": 2,
         }
         with yt_dlp.YoutubeDL(meta_options) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -157,69 +159,114 @@ def process_job(job_id, url, count):
                 "start_time": start_time,
                 "end_time": min(duration, start_time + CLIP_SECONDS),
                 "title": "Clip %d" % (i + 1),
-                "index": i + 1,
             })
 
-        # Una sola extracción de la página y una sola sesión de descarga para todos los tramos.
-        source_dir = folder / "source"
         source_dir.mkdir(parents=True, exist_ok=True)
+        progress = {i + 1: {"done": False, "percent": 0, "mb": 0, "speed": 0} for i in range(total)}
 
-        def segment_size_guard(data):
-            if data.get("status") == "downloading" and (data.get("downloaded_bytes") or 0) > 200 * 1024 * 1024:
-                raise yt_dlp.utils.DownloadError("segment-too-large")
+        def update_progress(index, data):
+            status = data.get("status")
+            downloaded = float(data.get("downloaded_bytes") or 0)
+            total_bytes = float(data.get("total_bytes") or data.get("total_bytes_estimate") or 0)
+            speed = float(data.get("speed") or 0)
+            with JOBS_LOCK:
+                item = progress[index]
+                item["mb"] = downloaded / (1024 * 1024)
+                item["speed"] = speed
+                if total_bytes > 0:
+                    item["percent"] = min(100, int(downloaded * 100 / total_bytes))
+                if status == "finished":
+                    item["done"] = True
+                    item["percent"] = 100
+                completed = sum(1 for p in progress.values() if p["done"])
+                active = next(
+                    ((n, p) for n, p in progress.items() if not p["done"] and p["mb"] > 0),
+                    (index, item)
+                )
+                active_index, active_item = active
+                speed_text = (
+                    " · %.0f KB/s" % (active_item["speed"] / 1024)
+                    if active_item["speed"] > 0 else ""
+                )
+                if completed == total:
+                    message = "Descargas completadas. Preparando los clips…"
+                else:
+                    message = (
+                        "Descargando fragmentos en paralelo: %d/%d listos · "
+                        "fragmento %d: %d%% (%.1f MB)%s"
+                    ) % (
+                        completed, total, active_index, active_item["percent"],
+                        active_item["mb"], speed_text
+                    )
+                JOBS[job_id] = {"status": "processing", "message": message, "clips": []}
+
+        def download_one(index, clip_range):
+            output_template = str(source_dir / ("source_%02d.%%(ext)s" % index))
+            options = {
+                "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+                "outtmpl": output_template,
+                "noplaylist": True, "quiet": True, "no_warnings": True,
+                "socket_timeout": 20, "retries": 2, "fragment_retries": 2,
+                "extractor_retries": 2, "concurrent_fragment_downloads": 2,
+                "progress_hooks": [lambda data, clip_index=index: update_progress(clip_index, data)],
+                "download_ranges": lambda video_info, ydl: [clip_range],
+                "force_keyframes_at_cuts": True,
+                "overwrites": True,
+            }
+            with yt_dlp.YoutubeDL(options) as ydl:
+                ydl.download([url])
+            matches = [
+                p for p in source_dir.glob("source_%02d.*" % index)
+                if p.is_file() and p.suffix.lower() in (".mp4", ".mkv", ".webm", ".ts")
+            ]
+            if not matches:
+                raise RuntimeError("No se recibió el fragmento %d." % index)
+            return index, matches[0]
 
         with JOBS_LOCK:
             JOBS[job_id] = {
                 "status": "processing",
-                "message": "Descargando %d fragmentos seleccionados en calidad HD…" % total,
+                "message": "Preparando %d fragmentos HD en paralelo…" % total,
                 "clips": []
             }
 
-        options = {
-            "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
-            "outtmpl": str(source_dir / "source_%(section_number)02d.%(ext)s"),
-            "noplaylist": True, "quiet": True, "no_warnings": True,
-            "socket_timeout": 25, "retries": 3, "fragment_retries": 3,
-            "extractor_retries": 2, "concurrent_fragment_downloads": 4,
-            "progress_hooks": [segment_size_guard],
-            "download_ranges": lambda info, ydl: ranges,
-            "force_keyframes_at_cuts": True,
-            "overwrites": True,
-        }
-        with yt_dlp.YoutubeDL(options) as ydl:
-            ydl.download([url])
-
-        sources = sorted(
-            [p for p in source_dir.glob("source_*") if p.is_file() and p.suffix.lower() in (".mp4", ".mkv", ".webm", ".ts")],
-            key=lambda p: p.name
-        )
-        if len(sources) < total:
-            raise RuntimeError("La plataforma solo entregó %d de %d fragmentos." % (len(sources), total))
+        downloaded_sources = {}
+        # Tres descargas simultáneas reducen la espera sin saturar el servidor gratuito.
+        with ThreadPoolExecutor(max_workers=min(3, total)) as pool:
+            futures = [
+                pool.submit(download_one, index, clip_range)
+                for index, clip_range in enumerate(ranges, start=1)
+            ]
+            for future in as_completed(futures):
+                index, source = future.result()
+                downloaded_sources[index] = source
 
         clips = []
-        for i, source in enumerate(sources[:total]):
+        for i in range(1, total + 1):
+            source = downloaded_sources[i]
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Mejorando calidad y creando clip %d/%d…" % (i + 1, total),
+                    "message": "Creando clip vertical HD %d/%d…" % (i, total),
                     "clips": []
                 }
 
-            filename = "clip_%02d.mp4" % (i + 1)
+            filename = "clip_%02d.mp4" % i
             output = folder / filename
             subprocess.run([
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                 "-i", str(source), "-t", str(CLIP_SECONDS),
-                "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(output)
-            ], capture_output=True, check=True, timeout=240)
+                "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21",
+                "-threads", "2", "-c:a", "aac", "-b:a", "128k",
+                "-movflags", "+faststart", str(output)
+            ], capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d" % (i + 1), "url": "/download/%s/%s" % (job_id, filename)})
+            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename)})
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Clips creados: %d/%d" % (i + 1, total),
+                    "message": "Clips terminados: %d/%d" % (i, total),
                     "clips": []
                 }
             if folder_size(BASE) > MAX_STORAGE_BYTES:
@@ -227,7 +274,11 @@ def process_job(job_id, url, count):
 
         shutil.rmtree(source_dir, ignore_errors=True)
         with JOBS_LOCK:
-            JOBS[job_id] = {"status": "done", "message": "Clips listos en calidad mejorada.", "clips": clips}
+            JOBS[job_id] = {
+                "status": "done",
+                "message": "Clips verticales HD listos.",
+                "clips": clips
+            }
     except Exception as exc:
         print("CLIPS.ONTHE job %s failed: %s: %s" % (job_id, type(exc).__name__, exc), flush=True)
         shutil.rmtree(folder, ignore_errors=True)
@@ -239,7 +290,8 @@ def process_job(job_id, url, count):
                 "clips": []
             }
     finally:
-        ACTIVE_JOB = False
+        with JOBS_LOCK:
+            ACTIVE_JOB = False
 
 @app.get("/", response_class=HTMLResponse)
 def home():
