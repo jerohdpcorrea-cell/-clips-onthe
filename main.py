@@ -127,8 +127,12 @@ def download_size_guard(data):
     if data.get("status") != "downloading":
         return
     downloaded = data.get("downloaded_bytes") or 0
-    # No bloquear por estimaciones HLS: Kick puede reportar tamaños inflados.
-    # El límite se aplica únicamente a bytes realmente descargados.
+    estimated = data.get("total_bytes") or data.get("total_bytes_estimate") or 0
+    # Kick puede anunciar pistas HLS enormes. Si la estimación supera el
+    # límite temporal, abortar el análisis completo y usar selección alternativa
+    # antes de ocupar el almacenamiento o dejar la petición esperando horas.
+    if estimated > MAX_DOWNLOAD_BYTES:
+        raise yt_dlp.utils.DownloadError("audio-estimate-too-large")
     if downloaded > MAX_DOWNLOAD_BYTES:
         raise yt_dlp.utils.DownloadError("max-filesize")
 
