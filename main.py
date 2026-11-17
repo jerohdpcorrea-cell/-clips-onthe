@@ -70,7 +70,7 @@ function renderClips(state,done=false){
  }
  const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
  renderedClipCount=clips.length;
- result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?"¡Listo! Todos tus clips están preparados.":(state.message||"Procesando…"))+"</p>"+cards;
+ result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p>"+cards;
 }
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;result.textContent="Enviando vídeo para procesar…";
