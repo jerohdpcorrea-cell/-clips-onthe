@@ -137,7 +137,7 @@ def process_job(job_id, url, count):
             JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
 
         meta_options = {
-            "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+            "format": "best[height<=480][ext=mp4]/best[height<=480]/worst[ext=mp4]/worst",
             "noplaylist": True, "quiet": True, "no_warnings": True,
             "socket_timeout": 20, "retries": 2, "extractor_retries": 2,
         }
@@ -193,7 +193,7 @@ def process_job(job_id, url, count):
                     message = "Descargas completadas. Preparando los clips…"
                 else:
                     message = (
-                        "Descargando fragmentos en paralelo: %d/%d listos · "
+                        "Descargando fragmentos uno por uno: %d/%d listos · "
                         "fragmento %d: %d%% (%.1f MB)%s"
                     ) % (
                         completed, total, active_index, active_item["percent"],
@@ -204,7 +204,7 @@ def process_job(job_id, url, count):
         def download_one(index, clip_range):
             output_template = str(source_dir / ("source_%02d.%%(ext)s" % index))
             options = {
-                "format": "best[height<=720][ext=mp4]/best[height<=720]/best",
+                "format": "best[height<=480][ext=mp4]/best[height<=480]/worst[ext=mp4]/worst",
                 "outtmpl": output_template,
                 "noplaylist": True, "quiet": True, "no_warnings": True,
                 "socket_timeout": 20, "retries": 2, "fragment_retries": 2,
@@ -227,7 +227,7 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {
                 "status": "processing",
-                "message": "Preparando %d fragmentos HD en paralelo…" % total,
+                "message": "Preparando %d fragmentos en calidad ligera…" % total,
                 "clips": []
             }
 
@@ -248,7 +248,7 @@ def process_job(job_id, url, count):
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
-                    "message": "Creando clip vertical HD %d/%d…" % (i, total),
+                    "message": "Creando clip vertical %d/%d…" % (i, total),
                     "clips": []
                 }
 
@@ -259,7 +259,7 @@ def process_job(job_id, url, count):
                 "-i", str(source), "-t", str(CLIP_SECONDS),
                 "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21",
-                "-threads", "2", "-c:a", "aac", "-b:a", "128k",
+                "-threads", "1", "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart", str(output)
             ], capture_output=True, check=True, timeout=180)
 
@@ -277,7 +277,7 @@ def process_job(job_id, url, count):
         with JOBS_LOCK:
             JOBS[job_id] = {
                 "status": "done",
-                "message": "Clips verticales HD listos.",
+                "message": "Clips verticales listos.",
                 "clips": clips
             }
     except Exception as exc:
