@@ -103,6 +103,8 @@ def valid_source_url(raw):
 
 def safe_error(exc):
     msg = str(exc).lower()
+    if "not a bot" in msg or "sign in to confirm" in msg:
+        return "YouTube bloqueó la descarga automática desde el servidor. Prueba más tarde o usa un vídeo público de Kick; algunos vídeos de YouTube requieren una sesión verificada."
     if "429" in msg or "too many requests" in msg:
         return "La plataforma limitó las descargas (HTTP 429). Espera un rato e inténtalo más tarde."
     if "403" in msg or "forbidden" in msg or "player response" in msg:
