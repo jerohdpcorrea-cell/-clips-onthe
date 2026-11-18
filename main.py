@@ -689,6 +689,13 @@ def process_job(job_id, url, count):
 def home():
     return HTML
 
+
+@app.head("/", response_class=HTMLResponse)
+def home_head():
+    # Render y algunos proxies validan la portada mediante HEAD.
+    return HTMLResponse(content="")
+
+
 @app.get("/healthz")
 def health():
     return {"status": "ok", "service": "CLIPS.ONTHE"}
