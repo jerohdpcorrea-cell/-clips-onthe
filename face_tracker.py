@@ -6,6 +6,9 @@ import cv2
 
 
 def main(path):
+    # El seguimiento procesa pocos fotogramas en una instancia de 512 MB.
+    # Un solo hilo evita pools paralelos innecesarios y reduce picos de CPU.
+    cv2.setNumThreads(1)
     cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     detector = cv2.CascadeClassifier(cascade_path)
     if detector.empty():
