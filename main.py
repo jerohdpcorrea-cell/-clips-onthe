@@ -475,11 +475,12 @@ def process_job(job_id, url, count):
                     "message": "Análisis de audio omitido o no disponible. Seleccionando momentos repartidos por el vídeo…",
                     "clips": []
                 }
-            fallback_length = min(30, max(MIN_CLIP_SECONDS, int(duration / max(1, total))))
-            available = max(0.0, duration - fallback_length)
+            segment_span = duration / max(1, total)
+            fallback_length = min(30, max(MIN_CLIP_SECONDS, int(segment_span)))
             ranges = []
             for i in range(total):
-                start_time = available * (i + 1) / (total + 1)
+                # Un clip por tramo: repartirlos por todo el vídeo sin solaparlos.
+                start_time = i * segment_span + max(0.0, (segment_span - fallback_length) / 2)
                 ranges.append({
                     "start_time": float(start_time),
                     "end_time": float(start_time + fallback_length),
