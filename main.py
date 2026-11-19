@@ -664,9 +664,10 @@ def build_face_crop_filter(source_path):
         face_sizes = [float(item.get("size") or 0) for item in centers]
         if width < 2 or height < 2 or len(centers) < 3:
             return ""
-        # Si se detecta un grupo de forma repetida, jamás recortar a una sola cara.
-        group_samples = sum(1 for item in centers if int(item.get("face_count") or 1) >= 2)
-        if group_samples >= 1:
+        # Regla conservadora: solo recortar cuando TODAS las muestras muestran
+        # claramente una única persona. Si aparece un grupo, falta detección o hay
+        # duda, conservar el plano completo para no cortar a nadie.
+        if any(int(item.get("face_count") or 0) != 1 for item in centers):
             return ""
         if not face_sizes or statistics.median(face_sizes) < 0.08:
             return ""
