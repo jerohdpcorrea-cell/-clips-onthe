@@ -16,6 +16,8 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
+import urllib.request
+import urllib.error
 
 import yt_dlp
 from fastapi import FastAPI, Form, HTTPException, BackgroundTasks
@@ -427,6 +429,107 @@ def download_source_captions(url, source_dir):
     return files[0] if files else None
 
 
+
+def transcribe_clip_to_srt(video_path, clip_seconds, output_path):
+    """Create Spanish subtitles with Groq Whisper when GROQ_API_KEY is configured."""
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        return False
+
+    audio_path = output_path.with_suffix(".audio.mp3")
+    try:
+        # Extract only low-bitrate mono audio from this already-downloaded clip.
+        subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000",
+                "-b:a", "48k", "-t", str(max(1, min(clip_seconds, 65))),
+                str(audio_path),
+            ],
+            capture_output=True, check=True, timeout=45
+        )
+        audio_bytes = audio_path.read_bytes()
+        if not audio_bytes or len(audio_bytes) > 24 * 1024 * 1024:
+            return False
+
+        boundary = "----CLIPSONTHE" + uuid.uuid4().hex
+        parts = []
+        fields = {
+            "model": "whisper-large-v3-turbo",
+            "language": "es",
+            "response_format": "verbose_json",
+            "timestamp_granularities[]": "segment",
+            "temperature": "0",
+        }
+        for name, value in fields.items():
+            parts.extend([
+                ("--" + boundary + "\r\n").encode(),
+                ('Content-Disposition: form-data; name="%s"\r\n\r\n' % name).encode(),
+                value.encode(),
+                b"\r\n",
+            ])
+        parts.extend([
+            ("--" + boundary + "\r\n").encode(),
+            ('Content-Disposition: form-data; name="file"; filename="clip.mp3"\r\n').encode(),
+            b"Content-Type: audio/mpeg\r\n\r\n",
+            audio_bytes,
+            b"\r\n",
+            ("--" + boundary + "--\r\n").encode(),
+        ])
+        request = urllib.request.Request(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            data=b"".join(parts),
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "multipart/form-data; boundary=" + boundary,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=75) as response:
+            result = json.loads(response.read().decode("utf-8"))
+
+        segments = result.get("segments") or []
+        if not segments:
+            return False
+
+        def stamp(seconds):
+            milliseconds = max(0, int(round(float(seconds) * 1000)))
+            hours, remainder = divmod(milliseconds, 3600000)
+            minutes, remainder = divmod(remainder, 60000)
+            seconds_part, millis = divmod(remainder, 1000)
+            return "%02d:%02d:%02d,%03d" % (hours, minutes, seconds_part, millis)
+
+        cues = []
+        for segment in segments:
+            text_value = re.sub(r"\s+", " ", str(segment.get("text") or "")).strip()
+            try:
+                start = max(0.0, float(segment.get("start", 0)))
+                end = min(float(clip_seconds), float(segment.get("end", 0)))
+            except (TypeError, ValueError):
+                continue
+            if text_value and end > start:
+                cues.append((start, end, text_value))
+        if not cues:
+            return False
+
+        with output_path.open("w", encoding="utf-8") as output:
+            for index, (start, end, text_value) in enumerate(cues, 1):
+                output.write("%d\n%s --> %s\n%s\n\n" % (
+                    index, stamp(start), stamp(end), text_value
+                ))
+        return True
+    except Exception as exc:
+        print("CLIPS.ONTHE automatic transcription failed: %s: %s" % (
+            type(exc).__name__, exc
+        ), flush=True)
+        return False
+    finally:
+        try:
+            audio_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
     """Convert available VTT cues to a clip-relative SRT file."""
     if not vtt_path or not vtt_path.is_file():
@@ -827,6 +930,21 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             has_subtitles = write_clip_srt(
                 caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
             )
+            if not has_subtitles and os.environ.get("GROQ_API_KEY", "").strip():
+                with JOBS_LOCK:
+                    JOBS[job_id] = {
+                        "status": "processing",
+                        "message": "Creando subtítulos automáticos en español para el clip %d/%d…" % (i, total),
+                        "clips": list(clips)
+                    }
+                has_subtitles = transcribe_clip_to_srt(
+                    source, clip_range["end_time"] - clip_range["start_time"], srt_path
+                )
+                print(
+                    "CLIPS.ONTHE automatic captions %s for %s clip %d" % (
+                        "created" if has_subtitles else "not available", job_id, i
+                    ), flush=True
+                )
             # Ajustar la imagen completa dentro del lienzo vertical sin recortar
             # bordes; rellenar el espacio sobrante con negro en una sola pasada.
             if face_crop_filter:
