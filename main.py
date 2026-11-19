@@ -221,103 +221,69 @@ def download_size_guard(data):
         raise yt_dlp.utils.DownloadError("max-filesize")
 
 
-def analyze_audio_highlights(audio_path, duration, count):
-    """Select non-overlapping 20-60s windows using audio activity as a free heuristic."""
+def analyze_audio_highlights(audio_path, duration, count, mode="balanced"):
+    """Rank non-overlapping moments with lightweight audio cues; no external AI service."""
     wav_path = audio_path.with_suffix(".analysis.wav")
-    subprocess.run([
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000",
-        "-c:a", "pcm_s16le", str(wav_path)
-    ], capture_output=True, check=True, timeout=900)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000", "-c:a", "pcm_s16le", str(wav_path)], capture_output=True, check=True, timeout=900)
     try:
         levels = []
         with wave.open(str(wav_path), "rb") as wav:
             sample_rate = wav.getframerate()
             while True:
                 raw = wav.readframes(sample_rate)
-                if not raw:
-                    break
+                if not raw: break
                 samples = array.array("h")
                 samples.frombytes(raw)
                 if not samples:
                     levels.append(0.0)
                     continue
-                if os.sys.byteorder != "little":
-                    samples.byteswap()
+                if os.sys.byteorder != "little": samples.byteswap()
                 square_mean = sum(int(v) * int(v) for v in samples) / len(samples)
                 levels.append(math.sqrt(square_mean))
-        if len(levels) < MIN_CLIP_SECONDS:
-            raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
+        if len(levels) < MIN_CLIP_SECONDS: raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
         candidates = []
-        step = 5
         available = min(len(levels), int(duration))
-        # Normalizar contra el propio vídeo evita que un volumen general alto
-        # (por ejemplo, música constante) domine toda la selección.
-        ordered_levels = sorted(levels[:available])
-        p20 = ordered_levels[int((len(ordered_levels) - 1) * 0.20)] if ordered_levels else 0
-        p80 = ordered_levels[int((len(ordered_levels) - 1) * 0.80)] if ordered_levels else 0
-        if p80 < 120:
-            raise RuntimeError("No se detectó suficiente actividad de audio.")
+        ordered = sorted(levels[:available])
+        p20 = ordered[int((len(ordered)-1)*0.20)] if ordered else 0
+        p80 = ordered[int((len(ordered)-1)*0.80)] if ordered else 0
+        if p80 < 120: raise RuntimeError("No se detectó suficiente actividad de audio.")
         noise_floor = max(80.0, p20 * 1.6)
         reference = max(1.0, p80)
-        for length in (20, 30, 45, 60):
-            if available < length:
-                continue
-            for start in range(0, available - length + 1, step):
-                window = levels[start:start + length]
-                if len(window) != length:
-                    continue
+        weights = {"balanced": (0.42,0.18,0.28,0.12), "reactions": (0.25,0.35,0.15,0.25), "conversation": (0.28,0.10,0.48,0.14), "gameplay": (0.30,0.30,0.15,0.25)}.get(mode, (0.42,0.18,0.28,0.12))
+        for length in (20,30,45,60):
+            if available < length: continue
+            for start in range(0, available-length+1, 5):
+                window = levels[start:start+length]
                 avg = statistics.fmean(window)
                 peak = max(window)
                 variation = statistics.pstdev(window)
-                active_ratio = sum(1 for v in window if v > noise_floor) / length
-                # Energía + picos + actividad sostenida; es una heurística de
-                # audio, no una comprensión semántica de lo que se dice.
-                energy_score = min(1.5, avg / reference)
-                peak_score = min(2.0, peak / reference)
-                variation_score = min(1.0, variation / reference)
-                silence_penalty = max(0.0, 0.35 - active_ratio)
-                length_bonus = 0.04 if length in (30, 45) else 0.0
-                score = (0.42 * energy_score + 0.18 * peak_score +
-                         0.28 * active_ratio + 0.12 * variation_score +
-                         length_bonus - silence_penalty)
-                candidates.append((score, start, length))
+                active = sum(1 for v in window if v > noise_floor) / length
+                energy_score = min(1.5, avg/reference)
+                peak_score = min(2.0, peak/reference)
+                variation_score = min(1.0, variation/reference)
+                silence_penalty = max(0.0, 0.35-active)
+                length_bonus = 0.04 if length in (30,45) else 0.0
+                score = weights[0]*energy_score + weights[1]*peak_score + weights[2]*active + weights[3]*variation_score + length_bonus - silence_penalty
+                candidates.append((score,start,length))
         candidates.sort(reverse=True)
         chosen = []
-        # Dejar un pequeño margen entre clips reduce repeticiones de la misma
-        # conversación y evita cortes pegados unos a otros.
-        min_gap = 10
-        for score, start, length in candidates:
-            end = start + length
-            if all(end + min_gap <= prior_start or start >= prior_end + min_gap
-                   for prior_start, prior_end in chosen):
-                chosen.append((start, end))
-                if len(chosen) >= count:
-                    break
+        for score,start,length in candidates:
+            end = start+length
+            if all(end+10 <= ps or start >= pe+10 for ps,pe,_ in chosen):
+                chosen.append((start,end,score))
+                if len(chosen) >= count: break
         if len(chosen) < count:
-            for score, start, length in candidates:
-                end = start + length
-                if (start, end) not in chosen and all(
-                    end <= prior_start or start >= prior_end
-                    for prior_start, prior_end in chosen
-                ):
-                    chosen.append((start, end))
-                    if len(chosen) >= count:
-                        break
-        chosen.sort()
-        return [
-            {"start_time": float(start), "end_time": float(end),
-             "title": "Momento destacado %d (%ds)" % (i + 1, end - start)}
-            for i, (start, end) in enumerate(chosen)
-        ]
+            for score,start,length in candidates:
+                end = start+length
+                if all(end <= ps or start >= pe for ps,pe,_ in chosen):
+                    chosen.append((start,end,score))
+                    if len(chosen) >= count: break
+        chosen.sort(key=lambda item:item[0])
+        best = max((item[2] for item in chosen), default=1.0)
+        return [{"start_time":float(st),"end_time":float(en),"title":"Momento destacado %d (%ds)"%(i+1,en-st),"score":max(1,min(99,int(round(100*score/max(0.01,best)))))} for i,(st,en,score) in enumerate(chosen)]
     finally:
-        try:
-            wav_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-
-
-
+        try: wav_path.unlink(missing_ok=True)
+        except OSError: pass
 def parse_vtt_timestamp(value):
     match = re.match(r"(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})", value.strip())
     if not match:
@@ -470,7 +436,7 @@ def safe_error(exc):
         return "El vídeo supera el límite de duración de 6 horas."
     return "No se pudo procesar el vídeo. Comprueba que el enlace sea público y vuelve a intentarlo."
 
-def process_job(job_id, url, count):
+def process_job(job_id, url, count, mode="balanced", follow_face=False):
     global ACTIVE_JOB
     folder = BASE / job_id
     source_dir = folder / "source"
@@ -535,7 +501,7 @@ def process_job(job_id, url, count):
                     "message": "Detectando momentos activos y su duración ideal…",
                     "clips": []
                 }
-            ranges = analyze_audio_highlights(audio_files[0], duration, total)
+            ranges = analyze_audio_highlights(audio_files[0], duration, total, mode)
         except Exception as audio_exc:
             print("CLIPS.ONTHE audio analysis unavailable for %s: %s: %s" % (
                 job_id, type(audio_exc).__name__, audio_exc
@@ -557,7 +523,8 @@ def process_job(job_id, url, count):
                 ranges.append({
                     "start_time": float(start_time),
                     "end_time": float(start_time + fallback_length),
-                    "title": "Momento del vídeo %d (%ds)" % (i + 1, fallback_length)
+                    "title": "Momento del vídeo %d (%ds)" % (i + 1, fallback_length),
+                    "score": None
                 })
         finally:
             for audio_file in audio_files:
@@ -678,13 +645,17 @@ def process_job(job_id, url, count):
 
             filename = "clip_%02d.mp4" % i
             output = folder / filename
+            face_crop_filter = build_face_crop_filter(source) if follow_face else ""
             srt_path = source_dir / ("clip_%02d.srt" % i)
             has_subtitles = write_clip_srt(
                 caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
             )
             # Ajustar la imagen completa dentro del lienzo vertical sin recortar
             # bordes; rellenar el espacio sobrante con negro en una sola pasada.
-            video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
+            if face_crop_filter:
+                video_filter = face_crop_filter + "scale=720:1280,setsar=1"
+            else:
+                video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
             if has_subtitles:
                 video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
             video_filter += "[v]"
@@ -711,7 +682,7 @@ def process_job(job_id, url, count):
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename)})
+            clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
             try:
                 srt_path.unlink(missing_ok=True)
             except OSError:
@@ -768,11 +739,13 @@ def health():
     return {"status": "ok", "service": "CLIPS.ONTHE"}
 
 @app.post("/api/clips")
-def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5)):
+def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5), mode: str = Form("balanced"), follow_face: bool = Form(False)):
     global ACTIVE_JOB
     cleanup_old_jobs()
     if count not in (1, 5, 10, 20):
         raise HTTPException(400, "Selecciona 1, 5, 10 o 20 clips.")
+    if mode not in ("balanced", "reactions", "conversation", "gameplay"):
+        raise HTTPException(400, "Selecciona un modo de análisis válido.")
     if not valid_source_url(url):
         raise HTTPException(400, "Pega un enlace HTTPS válido de YouTube o Kick.")
     if folder_size(BASE) > MAX_STORAGE_BYTES:
@@ -790,7 +763,7 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
         raise HTTPException(503, "No se pudo reservar espacio temporal. Inténtalo de nuevo.")
     with JOBS_LOCK:
         JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": []}
-    background_tasks.add_task(process_job, job_id, url, count)
+    background_tasks.add_task(process_job, job_id, url, count, mode, follow_face)
     return {"job_id": job_id, "status": "queued"}
 
 @app.get("/api/jobs/{job_id}")
