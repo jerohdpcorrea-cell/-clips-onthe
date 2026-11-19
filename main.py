@@ -305,6 +305,29 @@ main{width:min(1440px,calc(100% - 130px));margin:0 28px 0 108px;padding:22px 0 6
 footer{color:#737b91}
 @media(max-width:900px){.rail{width:62px}.rail-logo{width:39px;height:39px}main{width:calc(100% - 92px);margin-left:78px;margin-right:14px}.hero{padding:26px;gap:18px}.workspace{grid-template-columns:minmax(0,1fr) 270px}}
 @media(max-width:680px){.rail{position:sticky;top:0;inset:auto;width:100%;height:58px;flex-direction:row;justify-content:flex-start;padding:7px 14px;gap:12px;border-right:0;border-bottom:1px solid #25283a}.rail-logo{width:36px;height:36px}.rail-line,.rail-bottom{display:none}.rail-link{width:38px;height:38px}.rail-link:last-of-type{margin-left:auto}main{width:calc(100% - 26px);margin:0 auto;padding:16px 0 35px}.topline{margin-bottom:22px}.hero{grid-template-columns:1fr;padding:25px 20px;min-height:0;border-radius:19px;margin-bottom:18px}.hero .brand{font-size:58px;letter-spacing:-3.5px}.hero-visual{min-height:200px}.workspace{grid-template-columns:1fr}.panel{padding:20px 15px;border-radius:18px}.panel-heading h2{font-size:26px}.side-panel{display:block}.form-grid{gap:9px}.clip-card{grid-template-columns:1fr 100px}.clip-card video{grid-column:2;grid-row:1/4;max-height:190px}}
+
+/* Resultados: tarjetas de clips en formato estudio */
+#result:not(:empty){padding-top:25px}
+.results-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 15px}
+.results-kicker{display:block;color:var(--acid);font-size:9px;font-weight:900;letter-spacing:2px;margin-bottom:7px}
+.results-heading h3{margin:0;color:#f4f6fb;font-size:25px;letter-spacing:-.8px}
+.results-heading .ok{margin:6px 0 0;color:#aeb8c8;font-size:12px;font-weight:500}
+.results-count{flex:0 0 auto;border:1px solid #4c5b38;background:#20291d;color:var(--acid);border-radius:12px;padding:9px 12px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums}
+.clips-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;margin-top:18px}
+.clip-card{display:flex;flex-direction:column;min-width:0;padding:16px;background:linear-gradient(155deg,#171d2b,#111621);border:1px solid #30394d;border-radius:17px;overflow:hidden;gap:9px;transition:border-color .2s,transform .2s}
+.clip-card:hover{border-color:#71804b;transform:translateY(-2px)}
+.clip-card-top{display:flex;justify-content:space-between;align-items:center}
+.clip-number{font-size:9px;font-weight:900;letter-spacing:1.6px;color:#aeb8ca}
+.clip-ready{font-size:8px;font-weight:900;letter-spacing:1px;color:var(--acid);background:#26311d;border:1px solid #53663a;border-radius:99px;padding:5px 8px}
+.clip-card h3{margin:0;font-size:17px;line-height:1.25;color:#f4f6fb}
+.clip-meta{display:flex;flex-wrap:wrap;gap:6px}
+.clip-score,.clip-duration{font-size:10px;padding:5px 8px;border-radius:7px}
+.clip-preview{display:flex;justify-content:center;align-items:center;width:100%;padding:12px;background:radial-gradient(ellipse at center,#222b3c,#090d15 72%);border:1px solid #293246;border-radius:12px;min-height:170px}
+.clip-card .clip-preview video{display:block;width:auto;max-width:100%;height:clamp(230px,32vw,390px);max-height:none;aspect-ratio:9/16;object-fit:contain;background:#000;border:1px solid #3b465d;border-radius:8px}
+.clip-card .download{display:flex;justify-content:center;align-items:center;gap:9px;width:100%;box-sizing:border-box;margin-top:2px;padding:12px 14px;border-radius:10px;font-size:12px}
+.clip-card .download>span{font-size:18px;line-height:1}
+.clip-card .download small{margin-left:auto;color:#aeb9a0;font-size:8px;letter-spacing:1px}
+@media(max-width:680px){.clips-grid{grid-template-columns:1fr;gap:13px}.clip-card{padding:13px}.clip-card .clip-preview video{height:min(105vw,420px)}.results-heading h3{font-size:21px}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
@@ -327,10 +350,10 @@ function renderClips(state,done=false){
   if(status)status.textContent=done?finalMessage:(state.message||"Procesando…");
   return;
  }
- const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score'>Índice de selección "+clip.score+"/100</span>":"<span class='clip-score'>Selección distribuida</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" s</span></div><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
+ const cards=clips.map((clip,index)=>"<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score'>Puntuación "+clip.score+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" segundos</span></div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+clip.url+"'></video></div><a class='download' href='"+clip.url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>").join("");
  renderedClipCount=clips.length;
  const pct=Math.min(100,Math.round(clips.length/Math.max(1,Number(form.count.value))*100));
- result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div>"+cards;
+ result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargar cada uno.</p></div><span class='results-count'>"+clips.length+" / "+Math.max(1,Number(form.count.value))+"</span></section><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
 }
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;renderedClipCount=0;result.textContent="Enviando vídeo para procesar…";
