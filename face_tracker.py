@@ -24,7 +24,8 @@ def main(path):
     if width < 2 or height < 2 or duration < 3:
         cap.release()
         return
-    step = max(1, int(math.ceil(duration / 30.0)))
+    # Muestrear hasta 60 puntos por clip (aprox. 1 por segundo) para que el encuadre siga mejor los cambios de cámara.
+    step = max(1, int(math.ceil(duration / 60.0)))
     sample_times = list(range(0, max(1, int(duration)), step))
     centers = []
     previous_x = None
@@ -37,6 +38,7 @@ def main(path):
             continue
         small = cv2.resize(frame, (320, resized_height), interpolation=cv2.INTER_AREA)
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        gray = cv2.equalizeHist(gray)
         faces = detector.detectMultiScale(
             gray, scaleFactor=1.1, minNeighbors=5, minSize=(18, 18)
         )
