@@ -40,7 +40,7 @@ ACTIVE_JOB = False
 HTML = """<!doctype html>
 <html lang="es"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090910"><title>CLIPS.ONTHE</title>
+<meta name="theme-color" content="#090910"><link rel="icon" href="data:,"><title>CLIPS.ONTHE</title>
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#21163c 0,#090910 58%);color:#f8f7ff;font-family:Inter,Arial,sans-serif;padding:32px 18px}
 main{max-width:680px;margin:5vh auto}.brand{font-size:clamp(34px,8vw,54px);font-weight:900;letter-spacing:-2px;margin:0}.brand span{color:#a78bfa}
@@ -352,8 +352,9 @@ function renderClips(state,done=false){
  }
  const cards=clips.map((clip,index)=>"<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+clip.score+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" segundos</span></div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+clip.url+"'></video></div><a class='download' href='"+clip.url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>").join("");
  renderedClipCount=clips.length;
- const pct=Math.min(100,Math.round(clips.length/Math.max(1,Number(form.count.value))*100));
- result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargar cada uno.</p></div><span class='results-count'>"+clips.length+" / "+Math.max(1,Number(form.count.value))+"</span></section><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
+ const targetCount=done?Math.max(1,clips.length):Math.max(1,Number(form.count.value));
+ const pct=done?100:Math.min(100,Math.round(clips.length/targetCount*100));
+ result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargar cada uno.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
 }
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;renderedClipCount=0;result.textContent="Enviando vídeo para procesar…";
