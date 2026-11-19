@@ -654,6 +654,8 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                     "clips": []
                 }
             ranges = analyze_audio_highlights(audio_files[0], duration, total, mode, seen_ranges)
+            if len(ranges) < total:
+                raise RuntimeError("No quedan suficientes momentos nuevos para esta cantidad de clips.")
         except Exception as audio_exc:
             print("CLIPS.ONTHE audio analysis unavailable for %s: %s: %s" % (
                 job_id, type(audio_exc).__name__, audio_exc
