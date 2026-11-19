@@ -519,8 +519,17 @@ def transcribe_clip_to_srt(video_path, clip_seconds, output_path):
                 ))
         return True
     except Exception as exc:
-        print("CLIPS.ONTHE automatic transcription failed: %s: %s" % (
-            type(exc).__name__, exc
+        # Groq returns a useful JSON body with HTTP errors (especially 403).
+        # Log only the response body; never log the API key or request headers.
+        error_body = ""
+        try:
+            if hasattr(exc, "read"):
+                error_body = exc.read().decode("utf-8", errors="replace")[:1200]
+        except Exception:
+            pass
+        print("CLIPS.ONTHE automatic transcription failed: %s: %s%s" % (
+            type(exc).__name__, exc,
+            (" | Groq response: " + error_body) if error_body else ""
         ), flush=True)
         return False
     finally:
