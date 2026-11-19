@@ -174,6 +174,78 @@ footer{color:#626b7e;font-size:10px;margin:24px 0 0;max-width:760px}
 .history-clips .clip-card video{grid-column:2;grid-row:1/3;max-height:170px}
 .history-clips .clip-card .download{grid-column:1;grid-row:2}
 @media(max-width:680px){.history-toolbar{margin:-5px 0 15px}#history-panel{padding:15px}.history-clips .clip-card{grid-template-columns:minmax(0,1fr) 88px}}
+
+/* OBSIDIAN / INFERNO — identidad visual épica */
+:root{color-scheme:dark;--bg:#090909;--panel:#141414;--line:#34302b;--muted:#aaa39a;--text:#f7f1e8;--hot:#ff6a24;--gold:#ffc15a;--red:#d93622}
+html{background:var(--bg);scroll-behavior:smooth}
+body{background:radial-gradient(ellipse at 50% -18%,#6d2b12 0%,transparent 43%),radial-gradient(ellipse at 100% 52%,#39170d55 0%,transparent 34%),linear-gradient(180deg,#0d0c0b,#080808 72%);color:var(--text)}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.18;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,black,transparent 78%)}
+main{width:min(1280px,calc(100% - 56px));padding:25px 0 58px}
+.topline{border-bottom:1px solid #30251e;margin-bottom:54px;padding-bottom:17px}
+.brand-mark{border-radius:10px;background:linear-gradient(145deg,#ff9a3d,#e33b1f 75%);color:#160b06;box-shadow:0 0 28px #ff632b35;font-size:13px}
+.brand-mark span{color:#fff0d6}
+.nav-brand{color:#fff8ef;letter-spacing:1.8px}
+.nav-brand small{color:#9e7560;letter-spacing:2.6px}
+.topline-pill{background:#17110e;border-color:#55301f;color:#f5b27b}
+.topline-pill i{background:#ff7b32;box-shadow:0 0 12px #ff6a24}
+.hero{gap:52px;margin-bottom:42px}
+.eyebrow{color:#ff9651;letter-spacing:2.5px}
+.hero .brand{font-size:clamp(54px,7.2vw,88px);letter-spacing:-5px;line-height:.93;text-shadow:0 12px 55px #ff5b1b22}
+.hero .brand span{background:linear-gradient(100deg,#fff0cf 0%,#ffb34f 38%,#ff5428 78%,#d92e1d);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:#b8ada2;font-size:15px;max-width:610px}
+.hero-tags span{background:#17120f;border-color:#493020;color:#e7c5a7}
+.hero-visual{position:relative;overflow:hidden;transform:rotate(0);border-radius:17px;border-color:#5a3825;background:linear-gradient(145deg,#21150f,#11100f 70%);box-shadow:0 28px 90px #000a,0 0 55px #e84b1c18}
+.hero-visual:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 20%,#ff9d3b0c 48%,transparent 72%)}
+.visual-top,.visual-bottom{color:#a99482}
+.live-indicator{color:#ff9951}
+.visual-screen{background:radial-gradient(circle at 50% 38%,#7d3219,#2b1710 48%,#0b0b0b 100%);border-color:#704027}
+.screen-glow{background:#ff6a244d}
+.play-icon{border-color:#ffca9a77;background:#ff8b321c}
+.screen-caption{color:#e5bda0}
+.screen-bars i{background:linear-gradient(#ffc15a,#ed4724)}
+.workspace{grid-template-columns:minmax(0,1fr) 310px;gap:20px}
+.panel{background:linear-gradient(145deg,#191715,#11100f 76%);border:1px solid #49372b;border-radius:18px;box-shadow:0 30px 90px #0009,0 0 0 1px #ff8a2b08 inset}
+.panel-heading h2{color:#fff7ed;font-size:27px;letter-spacing:-1px}
+.panel-heading p:not(.eyebrow){color:#a99d91}
+.panel-icon{border-color:#5a3825;background:#26170f;color:#ff9b54}
+#form label{color:#d3bca8}
+#form input[type=url],#form select{background:#0b0a09;border-color:#46372e;color:#fff6ed;border-radius:9px}
+#form input:focus,#form select:focus{border-color:#ff8740;box-shadow:0 0 0 3px #ff70221f}
+#form input::placeholder{color:#76675d}
+.form-hint{color:#918477}
+#form button{background:linear-gradient(105deg,#e84920 0%,#ff762d 54%,#ffb64c 100%);color:#1a0c06;box-shadow:0 12px 32px #f05a242d;letter-spacing:1.25px}
+#form button:hover{filter:brightness(1.12)}
+.side-panel{background:linear-gradient(160deg,#191512,#100f0e);border-color:#49372b;border-radius:18px}
+.side-panel h3{color:#fff3e7}
+.side-feature{border-color:#35271f}
+.side-icon{background:#2b190f;color:#ff9b54;border:1px solid #57321e}
+.side-feature b{color:#f0e2d5}
+.side-feature small,.side-note p{color:#a29488}
+.side-note{background:linear-gradient(135deg,#2b1a11,#17110e);border-color:#664026}
+.side-note b{color:#ffb16d}
+#result:not(:empty){border-color:#453329}
+.progress-track{background:#33251d}
+.progress-track span{background:linear-gradient(90deg,#e84920,#ff9a35,#ffd06b);box-shadow:0 0 16px #ff762b55}
+.ok{color:#ffc18a}
+.progress-message,.muted{color:#b2a498}
+.clip-card{border-color:#3b2b21}
+.clip-card h3{color:#fff0e2}
+.clip-score,.clip-duration{background:#211710;border-color:#5b3824;color:#ffbd80}
+.clip-duration{color:#c4aa96}
+.clip-card video{border-color:#513625;background:#050505}
+.download{background:linear-gradient(110deg,#32190f,#24150f);border-color:#754326;color:#ffc18a}
+.download:hover{background:#482313}
+#history-toggle{background:#1b1511;border-color:#553724;color:#f2d2b8}
+#history-toggle:hover{border-color:#ff8740}
+#history-panel{background:#15110e;border-color:#49372b}
+.history-job{border-color:#3b2b21}
+.history-job p,.history-note{color:#a29488}
+.history-status{border-color:#71452c;color:#ffbd80}
+footer{color:#887b70}
+.error{background:#30130f;border-color:#7c3023;color:#ffb4a1}
+@media(max-width:850px){.workspace{grid-template-columns:minmax(0,1fr) 270px}.hero{gap:24px}}
+@media(max-width:680px){main{width:calc(100% - 28px);padding-top:16px}.topline{margin-bottom:34px}.hero .brand{font-size:56px;letter-spacing:-3.5px}.hero{gap:12px}.workspace{grid-template-columns:1fr}.panel{background:linear-gradient(145deg,#191715,#11100f)}.side-panel{display:none}}
+
 </style></head><body><main>
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
