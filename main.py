@@ -9,15 +9,12 @@ import wave
 import math
 import array
 import statistics
-import html
 import json
 import sys
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
-import urllib.request
-import urllib.error
 
 import yt_dlp
 from fastapi import FastAPI, Form, HTTPException, BackgroundTasks
@@ -179,7 +176,7 @@ footer{color:#626b7e;font-size:10px;margin:24px 0 0;max-width:760px}
 @media(max-width:680px){.history-toolbar{margin:-5px 0 15px}#history-panel{padding:15px}.history-clips .clip-card{grid-template-columns:minmax(0,1fr) 88px}}
 </style></head><body><main>
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
-<section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span><span>Subtítulos disponibles</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
+<section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y configura cómo quieres encontrar los mejores momentos.</p></div><span class="panel-icon">↗</span></div><form id="form">
 <label for="url">Enlace del vídeo</label><input id="url" name="url" type="url" required placeholder="Pega aquí tu enlace de Kick o YouTube" autocomplete="url">
 <div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div><div><label for="mode">Estilo de selección</label><select id="mode" name="mode"><option value="balanced" selected>Equilibrado</option><option value="reactions">Reacciones y picos</option><option value="conversation">Conversación</option><option value="gameplay">Acción y gameplay</option></select></div></div>
@@ -187,7 +184,7 @@ footer{color:#626b7e;font-size:10px;margin:24px 0 0;max-width:760px}
 <p class="form-hint">La selección analiza actividad, picos y variación del audio. El modo cambia el peso de esas señales; no promete viralidad ni sustituye una revisión humana.</p>
 <button id="btn" type="submit">ANALIZAR Y GENERAR CLIPS <span>→</span></button>
 </form><div id="result" aria-live="polite"></div></section>
-<aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">CC</span><div><b>Subtítulos</b><small>Usa los subtítulos disponibles en la fuente.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Seguimiento facial ligero si se activa.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
+<aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Seguimiento facial ligero si se activa.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
 <footer>CLIPS.ONTHE · Herramienta independiente. El procesamiento depende de que el vídeo sea público y la plataforma permita descargarlo.</footer>
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
@@ -401,196 +398,6 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
     finally:
         try: wav_path.unlink(missing_ok=True)
         except OSError: pass
-def parse_vtt_timestamp(value):
-    match = re.match(r"(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{3})", value.strip())
-    if not match:
-        return None
-    hours = int(match.group(1) or 0)
-    minutes = int(match.group(2))
-    seconds = int(match.group(3))
-    millis = int(match.group(4))
-    return hours * 3600 + minutes * 60 + seconds + millis / 1000.0
-
-
-def download_source_captions(url, source_dir):
-    """Fetch only platform-provided Spanish/English captions; never downloads video."""
-    options = {
-        "skip_download": True, "writesubtitles": True, "writeautomaticsub": True,
-        "subtitleslangs": ["es", "es-419", "es-ES", "en"],
-        "subtitlesformat": "vtt/best", "outtmpl": str(source_dir / "captions.%(ext)s"),
-        "noplaylist": True, "quiet": True, "no_warnings": True,
-        "ignoreerrors": True, "socket_timeout": 15, "retries": 1,
-        "extractor_retries": 1,
-    }
-    with yt_dlp.YoutubeDL(options) as ydl:
-        ydl.download([url])
-    files = sorted(source_dir.glob("captions*.vtt"),
-                   key=lambda path: (0 if re.search(r"\.es(?:[-.]|\.)", path.name, re.I) else 1, path.name))
-    return files[0] if files else None
-
-
-
-def transcribe_clip_to_srt(video_path, clip_seconds, output_path):
-    """Create Spanish subtitles with Groq Whisper when GROQ_API_KEY is configured."""
-    api_key = os.environ.get("GROQ_API_KEY", "").strip()
-    if not api_key:
-        return False
-
-    audio_path = output_path.with_suffix(".audio.mp3")
-    try:
-        # Extract only low-bitrate mono audio from this already-downloaded clip.
-        subprocess.run(
-            [
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000",
-                "-b:a", "48k", "-t", str(max(1, min(clip_seconds, 65))),
-                str(audio_path),
-            ],
-            capture_output=True, check=True, timeout=45
-        )
-        audio_bytes = audio_path.read_bytes()
-        if not audio_bytes or len(audio_bytes) > 24 * 1024 * 1024:
-            return False
-
-        boundary = "----CLIPSONTHE" + uuid.uuid4().hex
-        parts = []
-        fields = {
-            "model": "whisper-large-v3-turbo",
-            "language": "es",
-            "response_format": "verbose_json",
-            "timestamp_granularities[]": "segment",
-            "temperature": "0",
-        }
-        for name, value in fields.items():
-            parts.extend([
-                ("--" + boundary + "\r\n").encode(),
-                ('Content-Disposition: form-data; name="%s"\r\n\r\n' % name).encode(),
-                value.encode(),
-                b"\r\n",
-            ])
-        parts.extend([
-            ("--" + boundary + "\r\n").encode(),
-            ('Content-Disposition: form-data; name="file"; filename="clip.mp3"\r\n').encode(),
-            b"Content-Type: audio/mpeg\r\n\r\n",
-            audio_bytes,
-            b"\r\n",
-            ("--" + boundary + "--\r\n").encode(),
-        ])
-        request = urllib.request.Request(
-            "https://api.groq.com/openai/v1/audio/transcriptions",
-            data=b"".join(parts),
-            headers={
-                "Authorization": "Bearer " + api_key,
-                "Content-Type": "multipart/form-data; boundary=" + boundary,
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=75) as response:
-            result = json.loads(response.read().decode("utf-8"))
-
-        segments = result.get("segments") or []
-        if not segments:
-            return False
-
-        def stamp(seconds):
-            milliseconds = max(0, int(round(float(seconds) * 1000)))
-            hours, remainder = divmod(milliseconds, 3600000)
-            minutes, remainder = divmod(remainder, 60000)
-            seconds_part, millis = divmod(remainder, 1000)
-            return "%02d:%02d:%02d,%03d" % (hours, minutes, seconds_part, millis)
-
-        cues = []
-        for segment in segments:
-            text_value = re.sub(r"\s+", " ", str(segment.get("text") or "")).strip()
-            try:
-                start = max(0.0, float(segment.get("start", 0)))
-                end = min(float(clip_seconds), float(segment.get("end", 0)))
-            except (TypeError, ValueError):
-                continue
-            if text_value and end > start:
-                cues.append((start, end, text_value))
-        if not cues:
-            return False
-
-        with output_path.open("w", encoding="utf-8") as output:
-            for index, (start, end, text_value) in enumerate(cues, 1):
-                output.write("%d\n%s --> %s\n%s\n\n" % (
-                    index, stamp(start), stamp(end), text_value
-                ))
-        return True
-    except Exception as exc:
-        # Groq returns a useful JSON body with HTTP errors (especially 403).
-        # Log only the response body; never log the API key or request headers.
-        error_body = ""
-        try:
-            if hasattr(exc, "read"):
-                error_body = exc.read().decode("utf-8", errors="replace")[:1200]
-        except Exception:
-            pass
-        print("CLIPS.ONTHE automatic transcription failed: %s: %s%s" % (
-            type(exc).__name__, exc,
-            (" | Groq response: " + error_body) if error_body else ""
-        ), flush=True)
-        return False
-    finally:
-        try:
-            audio_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-
-
-def write_clip_srt(vtt_path, clip_start, clip_end, output_path):
-    """Convert available VTT cues to a clip-relative SRT file."""
-    if not vtt_path or not vtt_path.is_file():
-        return False
-    try:
-        lines = vtt_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return False
-    cues = []
-    i = 0
-    while i < len(lines):
-        match = re.match(r"^\s*((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})\s+-->\s+((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})", lines[i])
-        if not match:
-            i += 1
-            continue
-        start = parse_vtt_timestamp(match.group(1))
-        end = parse_vtt_timestamp(match.group(2))
-        i += 1
-        text_lines = []
-        while i < len(lines) and lines[i].strip():
-            text_lines.append(lines[i])
-            i += 1
-        text = " ".join(text_lines)
-        text = re.sub(r"<[^>]+>", "", text)
-        text = html.unescape(text)
-        text = re.sub(r"\s+", " ", text).strip()
-        if start is not None and end is not None and end > clip_start and start < clip_end and text:
-            left = max(0.0, start - clip_start)
-            right = min(clip_end - clip_start, end - clip_start)
-            if right > left:
-                cues.append((left, right, text))
-        i += 1
-    if not cues:
-        return False
-
-    def stamp(seconds):
-        milliseconds = max(0, int(round(seconds * 1000)))
-        hours, remainder = divmod(milliseconds, 3600000)
-        minutes, remainder = divmod(remainder, 60000)
-        seconds_part, millis = divmod(remainder, 1000)
-        return "%02d:%02d:%02d,%03d" % (hours, minutes, seconds_part, millis)
-
-    try:
-        with output_path.open("w", encoding="utf-8") as output:
-            for index, (start, end, text) in enumerate(cues, 1):
-                output.write("%d\n%s --> %s\n%s\n\n" % (index, stamp(start), stamp(end), text))
-        return True
-    except OSError:
-        return False
-
-
-
 def build_face_crop_filter(source_path):
     """Build a smoothed, low-resolution face-follow crop; return empty on uncertainty."""
     try:
@@ -818,18 +625,6 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 except OSError:
                     pass
 
-        caption_file = None
-        try:
-            with JOBS_LOCK:
-                JOBS[job_id] = {"status": "processing", "message": "Buscando subtítulos disponibles en el vídeo…", "clips": []}
-            caption_file = download_source_captions(url, source_dir)
-            if caption_file:
-                print("CLIPS.ONTHE captions found for %s: %s" % (job_id, caption_file.name), flush=True)
-            else:
-                print("CLIPS.ONTHE no platform captions available for %s" % job_id, flush=True)
-        except Exception as caption_exc:
-            print("CLIPS.ONTHE captions unavailable for %s: %s" % (job_id, caption_exc), flush=True)
-
         progress = {i + 1: {"done": False, "percent": 0, "mb": 0, "speed": 0} for i in range(total)}
 
         def update_progress(index, data):
@@ -935,33 +730,11 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             filename = "clip_%02d.mp4" % i
             output = folder / filename
             face_crop_filter = build_face_crop_filter(source) if follow_face else ""
-            srt_path = source_dir / ("clip_%02d.srt" % i)
-            has_subtitles = write_clip_srt(
-                caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
-            )
-            if not has_subtitles and os.environ.get("GROQ_API_KEY", "").strip():
-                with JOBS_LOCK:
-                    JOBS[job_id] = {
-                        "status": "processing",
-                        "message": "Creando subtítulos automáticos en español para el clip %d/%d…" % (i, total),
-                        "clips": list(clips)
-                    }
-                has_subtitles = transcribe_clip_to_srt(
-                    source, clip_range["end_time"] - clip_range["start_time"], srt_path
-                )
-                print(
-                    "CLIPS.ONTHE automatic captions %s for %s clip %d" % (
-                        "created" if has_subtitles else "not available", job_id, i
-                    ), flush=True
-                )
-            # Ajustar la imagen completa dentro del lienzo vertical sin recortar
-            # bordes; rellenar el espacio sobrante con negro en una sola pasada.
+            # Convertir a vertical conservando la imagen completa; sin procesamiento de texto.
             if face_crop_filter:
                 video_filter = face_crop_filter + "scale=720:1280,setsar=1"
             else:
                 video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
-            if has_subtitles:
-                video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
             video_filter += "[v]"
             ffmpeg_command = [
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -975,39 +748,15 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             try:
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                # Si el seguimiento facial falla o tarda demasiado, conservar
-                # el clip con el encuadre completo antes que perder el resultado.
-                if face_crop_filter:
-                    print("CLIPS.ONTHE face reframe failed for %s clip %d; retrying full frame" % (job_id, i), flush=True)
-                    face_crop_filter = ""
-                    video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
-                    if has_subtitles:
-                        video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
-                    video_filter += "[v]"
-                    ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
-                    try:
-                        subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
-                    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                        if not has_subtitles:
-                            raise
-                        has_subtitles = False
-                        srt_path.unlink(missing_ok=True)
-                        video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
-                        ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
-                        subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
-                elif has_subtitles:
-                    # Si los subtítulos VTT son incompatibles, producir el clip
-                    # sin texto antes que perder el vídeo.
-                    print("CLIPS.ONTHE subtitle rendering failed for %s clip %d; retrying without captions" % (job_id, i), flush=True)
-                    has_subtitles = False
-                    srt_path.unlink(missing_ok=True)
-                    video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
-                    ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
-                    subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
-                else:
+                # Si el seguimiento facial falla, conservar el encuadre completo.
+                if not face_crop_filter:
                     raise
+                print("CLIPS.ONTHE face reframe failed for %s clip %d; retrying full frame" % (job_id, i), flush=True)
+                video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
+                ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
+                subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
+            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
             remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
             try:
                 srt_path.unlink(missing_ok=True)
