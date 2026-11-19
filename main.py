@@ -645,8 +645,8 @@ def process_job(job_id, url, count):
                 print("CLIPS.ONTHE face-follow crop enabled for %s clip %d" % (job_id, i), flush=True)
             video_filter = (
                 "[0:v]split=2[bg][fg];"
-                "[bg]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,boxblur=24:8[bg];"
-                "[fg]" + face_crop + "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
+                "[bg]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=12:3,scale=540:960[bg];"
+                "[fg]" + face_crop + "scale=540:960:force_original_aspect_ratio=decrease[fg];"
                 "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
             )
             if has_subtitles:
@@ -657,7 +657,7 @@ def process_job(job_id, url, count):
                 "-i", str(source), "-t", str(max(1, clip_range["end_time"] - clip_range["start_time"])),
                 "-filter_complex", video_filter,
                 "-map", "[v]", "-map", "0:a?",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
                 "-threads", "1", "-c:a", "aac", "-b:a", "128k",
                 "-movflags", "+faststart", str(output)
             ]
