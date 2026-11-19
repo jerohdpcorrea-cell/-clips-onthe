@@ -198,7 +198,7 @@ function renderClips(state,done=false){
   if(status)status.textContent=done?finalMessage:(state.message||"Procesando…");
   return;
  }
- const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score'>Fuerza del momento "+clip.score+"/100</span>":"<span class='clip-score'>Selección distribuida</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" s</span></div><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
+ const cards=clips.map(clip=>"<article class='clip-card'><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score'>Índice de selección "+clip.score+"/100</span>":"<span class='clip-score'>Selección distribuida</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" s</span></div><video controls playsinline preload='metadata' src='"+clip.url+"'></video><a class='download' href='"+clip.url+"' download>Descargar clip ↓</a></article>").join("");
  renderedClipCount=clips.length;
  const pct=Math.min(100,Math.round(clips.length/Math.max(1,Number(form.count.value))*100));
  result.innerHTML="<p class='ok'>Ya puedes reproducir y descargar los clips que van saliendo.</p><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div>"+cards;
@@ -336,68 +336,146 @@ def download_size_guard(data):
 
 def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclude_ranges=None):
     exclude_ranges = exclude_ranges or []
-    """Rank non-overlapping moments with lightweight audio cues; no external AI service."""
+    """Rank moments using lightweight energy, activity and short audio-burst cues."""
     wav_path = audio_path.with_suffix(".analysis.wav")
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000", "-c:a", "pcm_s16le", str(wav_path)], capture_output=True, check=True, timeout=900)
     try:
-        levels = []
+        # Medir RMS en bloques de 250 ms: permite distinguir picos breves
+        # (gritos, risas o golpes de energía) sin usar modelos pesados.
+        short_levels = []
         with wave.open(str(wav_path), "rb") as wav:
             sample_rate = wav.getframerate()
+            chunk_frames = max(1, sample_rate // 4)
             while True:
-                raw = wav.readframes(sample_rate)
-                if not raw: break
+                raw = wav.readframes(chunk_frames)
+                if not raw:
+                    break
                 samples = array.array("h")
                 samples.frombytes(raw)
                 if not samples:
-                    levels.append(0.0)
+                    short_levels.append(0.0)
                     continue
-                if os.sys.byteorder != "little": samples.byteswap()
+                if os.sys.byteorder != "little":
+                    samples.byteswap()
                 square_mean = sum(int(v) * int(v) for v in samples) / len(samples)
-                levels.append(math.sqrt(square_mean))
-        if len(levels) < MIN_CLIP_SECONDS: raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
+                short_levels.append(math.sqrt(square_mean))
+
+        # Conservar una serie por segundo para el cálculo de actividad general.
+        levels = [
+            statistics.fmean(short_levels[i:i + 4])
+            for i in range(0, len(short_levels), 4)
+        ]
+        if len(levels) < MIN_CLIP_SECONDS:
+            raise RuntimeError("No se pudo analizar suficiente audio del vídeo.")
+
         candidates = []
         available = min(len(levels), int(duration))
         ordered = sorted(levels[:available])
-        p20 = ordered[int((len(ordered)-1)*0.20)] if ordered else 0
-        p80 = ordered[int((len(ordered)-1)*0.80)] if ordered else 0
-        if p80 < 120: raise RuntimeError("No se detectó suficiente actividad de audio.")
+        p20 = ordered[int((len(ordered) - 1) * 0.20)] if ordered else 0
+        p80 = ordered[int((len(ordered) - 1) * 0.80)] if ordered else 0
+        if p80 < 120:
+            raise RuntimeError("No se detectó suficiente actividad de audio.")
         noise_floor = max(80.0, p20 * 1.6)
         reference = max(1.0, p80)
-        weights = {"balanced": (0.42,0.18,0.28,0.12), "reactions": (0.25,0.35,0.15,0.25), "conversation": (0.28,0.10,0.48,0.14), "gameplay": (0.30,0.30,0.15,0.25)}.get(mode, (0.42,0.18,0.28,0.12))
-        for length in (20,30,45,60):
-            if available < length: continue
-            for start in range(0, available-length+1, 5):
-                window = levels[start:start+length]
+        burst_threshold = max(noise_floor * 2.2, reference * 1.25)
+        weights = {
+            "balanced": (0.34, 0.14, 0.24, 0.10, 0.18),
+            "reactions": (0.20, 0.25, 0.10, 0.15, 0.30),
+            "conversation": (0.24, 0.08, 0.44, 0.10, 0.14),
+            "gameplay": (0.26, 0.24, 0.12, 0.12, 0.26),
+        }.get(mode, (0.34, 0.14, 0.24, 0.10, 0.18))
+
+        for length in (20, 30, 45, 60):
+            if available < length:
+                continue
+            for start in range(0, available - length + 1, 5):
+                window = levels[start:start + length]
                 avg = statistics.fmean(window)
                 peak = max(window)
                 variation = statistics.pstdev(window)
-                active = sum(1 for v in window if v > noise_floor) / length
-                energy_score = min(1.5, avg/reference)
-                peak_score = min(2.0, peak/reference)
-                variation_score = min(1.0, variation/reference)
-                silence_penalty = max(0.0, 0.35-active)
-                length_bonus = 0.04 if length in (30,45) else 0.0
-                score = weights[0]*energy_score + weights[1]*peak_score + weights[2]*active + weights[3]*variation_score + length_bonus - silence_penalty
-                candidates.append((score,start,length))
+                active = sum(1 for value in window if value > noise_floor) / length
+                energy_score = min(1.5, avg / reference)
+                peak_score = min(2.0, peak / reference)
+                variation_score = min(1.0, variation / reference)
+
+                fine_window = short_levels[start * 4:min((start + length) * 4, len(short_levels))]
+                burst_count = 0
+                was_loud = False
+                for value in fine_window:
+                    is_loud = value > burst_threshold
+                    if is_loud and not was_loud:
+                        burst_count += 1
+                    was_loud = is_loud
+                burst_score = min(1.0, burst_count / max(1.0, length * 0.10))
+
+                silence_penalty = max(0.0, 0.35 - active)
+                length_bonus = 0.04 if length in (30, 45) else 0.0
+                score = (
+                    weights[0] * energy_score
+                    + weights[1] * peak_score
+                    + weights[2] * active
+                    + weights[3] * variation_score
+                    + weights[4] * burst_score
+                    + length_bonus
+                    - silence_penalty
+                )
+                candidates.append((score, start, length))
+
         candidates.sort(reverse=True)
         chosen = []
-        for score,start,length in candidates:
-            end = start+length
-            if all(end+10 <= ps or start >= pe+10 for ps,pe,_ in chosen) and all(end+10 <= float(r[0]) or start >= float(r[1])+10 for r in exclude_ranges):
-                chosen.append((start,end,score))
-                if len(chosen) >= count: break
+        for score, start, length in candidates:
+            end = start + length
+            if all(end + 10 <= prev_start or start >= prev_end + 10
+                   for prev_start, prev_end, _ in chosen) and all(
+                end + 10 <= float(item[0]) or start >= float(item[1]) + 10
+                for item in exclude_ranges
+            ):
+                chosen.append((start, end, score))
+                if len(chosen) >= count:
+                    break
+
         if len(chosen) < count:
-            for score,start,length in candidates:
-                end = start+length
-                if all(end <= ps or start >= pe for ps,pe,_ in chosen) and all(end+10 <= float(r[0]) or start >= float(r[1])+10 for r in exclude_ranges):
-                    chosen.append((start,end,score))
-                    if len(chosen) >= count: break
-        chosen.sort(key=lambda item:item[0])
-        best = max((item[2] for item in chosen), default=1.0)
-        return [{"start_time":float(st),"end_time":float(en),"title":"Momento destacado %d (%ds)"%(i+1,en-st),"score":max(1,min(99,int(round(100*score/max(0.01,best)))))} for i,(st,en,score) in enumerate(chosen)]
+            for score, start, length in candidates:
+                end = start + length
+                if all(end <= prev_start or start >= prev_end
+                       for prev_start, prev_end, _ in chosen) and all(
+                    end + 10 <= float(item[0]) or start >= float(item[1]) + 10
+                    for item in exclude_ranges
+                ):
+                    chosen.append((start, end, score))
+                    if len(chosen) >= count:
+                        break
+
+        # Ajustar bordes solo cuando hay silencio claro y sin bajar de 20 s.
+        refined = []
+        for start, end, score in chosen:
+            segment = levels[start:end]
+            threshold = max(noise_floor * 1.15, statistics.fmean(segment) * 0.30)
+            active_positions = [i for i, value in enumerate(segment) if value > threshold]
+            if active_positions:
+                new_start = start + active_positions[0]
+                new_end = start + active_positions[-1] + 1
+                if MIN_CLIP_SECONDS <= new_end - new_start <= MAX_CLIP_SECONDS:
+                    start, end = new_start, new_end
+            refined.append((start, end, score))
+
+        refined.sort(key=lambda item: item[0])
+        best = max((item[2] for item in refined), default=1.0)
+        return [
+            {
+                "start_time": float(start),
+                "end_time": float(end),
+                "title": "Momento destacado %d (%ds)" % (i + 1, end - start),
+                "score": max(1, min(99, int(round(100 * score / max(0.01, best)))))
+            }
+            for i, (start, end, score) in enumerate(refined)
+        ]
     finally:
-        try: wav_path.unlink(missing_ok=True)
-        except OSError: pass
+        try:
+            wav_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
 def build_face_crop_filter(source_path):
     """Build a smoothed, low-resolution face-follow crop; return empty on uncertainty."""
     try:
@@ -758,10 +836,6 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
 
             clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
             remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
-            try:
-                srt_path.unlink(missing_ok=True)
-            except OSError:
-                pass
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
