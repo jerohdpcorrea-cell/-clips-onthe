@@ -12,6 +12,7 @@ import statistics
 import html
 import json
 import sys
+import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -334,7 +335,8 @@ def download_size_guard(data):
         raise yt_dlp.utils.DownloadError("max-filesize")
 
 
-def analyze_audio_highlights(audio_path, duration, count, mode="balanced"):
+def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclude_ranges=None):
+    exclude_ranges = exclude_ranges or []
     """Rank non-overlapping moments with lightweight audio cues; no external AI service."""
     wav_path = audio_path.with_suffix(".analysis.wav")
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "8000", "-c:a", "pcm_s16le", str(wav_path)], capture_output=True, check=True, timeout=900)
@@ -382,13 +384,13 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced"):
         chosen = []
         for score,start,length in candidates:
             end = start+length
-            if all(end+10 <= ps or start >= pe+10 for ps,pe,_ in chosen):
+            if all(end+10 <= ps or start >= pe+10 for ps,pe,_ in chosen) and all(end+10 <= float(r[0]) or start >= float(r[1])+10 for r in exclude_ranges):
                 chosen.append((start,end,score))
                 if len(chosen) >= count: break
         if len(chosen) < count:
             for score,start,length in candidates:
                 end = start+length
-                if all(end <= ps or start >= pe for ps,pe,_ in chosen):
+                if all(end <= ps or start >= pe for ps,pe,_ in chosen) and all(end+10 <= float(r[0]) or start >= float(r[1])+10 for r in exclude_ranges):
                     chosen.append((start,end,score))
                     if len(chosen) >= count: break
         chosen.sort(key=lambda item:item[0])
@@ -549,6 +551,41 @@ def safe_error(exc):
         return "El vídeo supera el límite de duración de 6 horas."
     return "No se pudo procesar el vídeo. Comprueba que el enlace sea público y vuelve a intentarlo."
 
+def source_history_path(source_key):
+    digest = hashlib.sha256(str(source_key).encode("utf-8")).hexdigest()
+    return BASE / ("seen_" + digest + ".json")
+
+
+def load_seen_ranges(source_key):
+    path = source_history_path(source_key)
+    cutoff = time.time() - JOB_TTL_SECONDS
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        entries = [item for item in data if float(item.get("created_at", 0)) >= cutoff]
+        if entries != data:
+            path.write_text(json.dumps(entries), encoding="utf-8")
+        return [[float(item["start"]), float(item["end"])] for item in entries]
+    except (OSError, ValueError, TypeError, KeyError):
+        return []
+
+
+def remember_seen_range(source_key, start, end):
+    path = source_history_path(source_key)
+    cutoff = time.time() - JOB_TTL_SECONDS
+    with JOBS_LOCK:
+        try:
+            entries = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(entries, list):
+                entries = []
+        except (OSError, ValueError):
+            entries = []
+        entries = [item for item in entries if float(item.get("created_at", 0)) >= cutoff]
+        entries.append({"start": float(start), "end": float(end), "created_at": time.time()})
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(entries), encoding="utf-8")
+        temp.replace(path)
+
+
 def process_job(job_id, url, count, mode="balanced", follow_face=False):
     global ACTIVE_JOB
     folder = BASE / job_id
@@ -567,6 +604,8 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             info = ydl.extract_info(url, download=False)
 
         duration = float(info.get("duration") or 0)
+        source_key = "%s:%s" % (info.get("extractor_key") or info.get("extractor") or "video", info.get("id") or url)
+        seen_ranges = load_seen_ranges(source_key)
         if info.get("is_live") or info.get("live_status") in ("is_live", "is_upcoming"):
             raise RuntimeError("No se pueden procesar directos que todavía están en emisión.")
         if duration < MIN_CLIP_SECONDS:
@@ -614,7 +653,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                     "message": "Detectando momentos activos y su duración ideal…",
                     "clips": []
                 }
-            ranges = analyze_audio_highlights(audio_files[0], duration, total, mode)
+            ranges = analyze_audio_highlights(audio_files[0], duration, total, mode, seen_ranges)
         except Exception as audio_exc:
             print("CLIPS.ONTHE audio analysis unavailable for %s: %s: %s" % (
                 job_id, type(audio_exc).__name__, audio_exc
@@ -630,15 +669,29 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             segment_span = duration / max(1, total)
             fallback_length = min(30, max(MIN_CLIP_SECONDS, int(segment_span)))
             ranges = []
-            for i in range(total):
-                # Un clip por tramo: repartirlos por todo el vídeo sin solaparlos.
-                start_time = i * segment_span + max(0.0, (segment_span - fallback_length) / 2)
+            # Probar posiciones distribuidas y saltar los intervalos entregados
+            # en solicitudes anteriores del mismo vídeo.
+            step = max(5.0, fallback_length / 2)
+            positions = list(range(0, max(1, int(duration - fallback_length) + 1), int(step)))
+            if positions:
+                offset = int(hashlib.sha256((source_key + str(len(seen_ranges))).encode()).hexdigest()[:8], 16) % len(positions)
+                positions = positions[offset:] + positions[:offset]
+            for start_time in positions:
+                end_time = start_time + fallback_length
+                if any(not (end_time + 10 <= float(a) or start_time >= float(b) + 10) for a, b in seen_ranges):
+                    continue
+                if any(not (end_time + 10 <= item["start_time"] or start_time >= item["end_time"] + 10) for item in ranges):
+                    continue
                 ranges.append({
                     "start_time": float(start_time),
-                    "end_time": float(start_time + fallback_length),
-                    "title": "Momento del vídeo %d (%ds)" % (i + 1, fallback_length),
+                    "end_time": float(end_time),
+                    "title": "Momento nuevo del vídeo (%ds)" % fallback_length,
                     "score": None
                 })
+                if len(ranges) >= total:
+                    break
+            if len(ranges) < total:
+                raise RuntimeError("Ya se han utilizado casi todos los momentos disponibles de este vídeo. Prueba con menos clips o espera 48 horas para volver a utilizar esos momentos.")
         finally:
             for audio_file in audio_files:
                 try:
@@ -826,6 +879,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                     raise
 
             clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
+            remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
             try:
                 srt_path.unlink(missing_ok=True)
             except OSError:
