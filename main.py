@@ -49,13 +49,43 @@ input,select{background:#0e0d17;color:white;border:1px solid #49405e;outline:non
 button{margin-top:18px;background:linear-gradient(100deg,#7c3aed,#a855f7);color:white;border:0;font-weight:800;cursor:pointer}button:disabled{opacity:.55;cursor:wait}
 #result{margin-top:18px;line-height:1.55;overflow-wrap:anywhere}.muted{color:#aaa3bd;font-size:13px}.clip-card{padding:15px 0;border-top:1px solid #393249}.clip-card h3{margin:4px 0 10px;font-size:16px}.clip-card video{display:block;width:100%;max-height:520px;background:#000;border-radius:12px}.download{display:inline-block;margin-top:10px;color:#d6c4ff;font-weight:700;text-decoration:none}.error{color:#ffb4b4}.ok{color:#b7f7ca}
 footer{color:#817b91;font-size:12px;text-align:center;margin-top:18px}
+
+/* CLIPS.ONTHE refreshed interface */
+body{padding:28px 16px;background:radial-gradient(900px 520px at 50% -10%,#39216d 0%,transparent 65%),radial-gradient(600px 420px at 100% 35%,#1a3150 0%,transparent 70%),#080811;color:#f7f5ff}
+main{max-width:760px;margin:4vh auto}
+.topline{display:flex;align-items:center;gap:9px;color:#c9b7ff;font-size:11px;font-weight:900;letter-spacing:2px;margin:0 0 16px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#8b5cf6;box-shadow:0 0 14px #a78bfa}
+.topline-pill{border:1px solid #554278;border-radius:99px;padding:4px 8px;font-size:9px;letter-spacing:1px;color:#d9ccff}
+.brand{font-size:clamp(38px,8vw,62px);letter-spacing:-2.8px;line-height:1;margin:0}
+.tag{color:#c4bdd8;max-width:600px;line-height:1.65;margin:13px 0 20px;font-size:15px}
+.feature-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
+.feature-chip{border:1px solid #39304f;background:#171326;border-radius:99px;padding:7px 11px;color:#d8d0eb;font-size:11px;font-weight:700}
+.panel{background:linear-gradient(145deg,#1b1830f5,#11111df5);border:1px solid #40345d;border-radius:24px;padding:clamp(19px,4vw,32px);box-shadow:0 24px 80px #0009,0 0 45px #6d28d91a}
+label{font-size:13px;font-weight:800;color:#e5def5;margin:17px 0 9px}
+input,select{background:#0b0a14;border:1px solid #49405e;border-radius:14px;padding:16px;color:#fff}
+input::placeholder{color:#777187}
+input:focus,select:focus{border-color:#a78bfa;box-shadow:0 0 0 3px #8b5cf622}
+button{border-radius:14px;padding:17px;background:linear-gradient(100deg,#6d28d9,#9333ea 55%,#c026d3);box-shadow:0 10px 28px #7c3aed38;letter-spacing:.5px;transition:transform .18s,filter .18s}
+button:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.12)}
+button:disabled{opacity:.62}
+.form-hint{margin:9px 0 0;color:#9e96b4;font-size:12px;line-height:1.5}
+#result{margin-top:22px;padding-top:2px}
+.progress-message{color:#c9c1dc;font-size:13px;line-height:1.5}
+.progress-track{height:7px;background:#302943;border-radius:99px;overflow:hidden;margin:12px 0 18px}
+.progress-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b5cf6,#d946ef);transition:width .3s}
+.clip-card{padding:19px 0;border-top:1px solid #3a324d}
+.clip-card h3{font-size:15px;font-weight:800}
+.clip-card video{max-height:620px;border:1px solid #403750}
+.download{display:inline-flex;align-items:center;gap:7px;background:#251b3a;border:1px solid #594276;border-radius:10px;padding:9px 13px;color:#e5d8ff;font-size:13px}
+footer{color:#777188;line-height:1.6;margin:22px auto 0;max-width:560px}
+@media(max-width:520px){body{padding:20px 13px}main{margin:3vh auto}.panel{border-radius:19px}.tag{font-size:14px}.clip-card video{max-height:460px}}
 </style></head><body><main>
-<h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Clips inteligentes para TikTok: momentos de 20 a 60 segundos y encuadre vertical sin perder la escena.</p>
+<div class="topline"><span class="status-dot"></span> CREADOR DE CLIPS PARA REDES <span class="topline-pill">BETA</span></div><h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Convierte tus directos en clips verticales listos para TikTok. Selecciona los momentos, revisa el resultado y descarga cada clip mientras se procesa el resto.</p><div class="feature-row"><span class="feature-chip">9:16 vertical</span><span class="feature-chip">Subtítulos disponibles</span><span class="feature-chip">Seguimiento de rostro</span></div>
 <section class="panel"><form id="form">
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
 <label for="count">¿Cuántos clips quieres?</label>
-<select id="count" name="count"><option value="5" selected>5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select>
+<select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select><p class="form-hint">Consejo: empieza con 1 clip para comprobar la velocidad y el encuadre antes de generar varios.</p>
 <button id="btn" type="submit">GENERAR CLIPS</button>
 </form><div id="result" aria-live="polite"></div>
 </section><footer>Procesamiento sujeto a disponibilidad y restricciones de la plataforma de origen.</footer>
@@ -563,7 +593,7 @@ def process_job(job_id, url, count):
                 "extractor_retries": 2, "concurrent_fragment_downloads": 1,
                 "progress_hooks": [lambda data, clip_index=index: update_progress(clip_index, data)],
                 "download_ranges": lambda video_info, ydl: [clip_range],
-                "force_keyframes_at_cuts": True,
+                "force_keyframes_at_cuts": False,
                 "overwrites": True,
             }
             with yt_dlp.YoutubeDL(options) as ydl:
@@ -704,7 +734,7 @@ def health():
 def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5)):
     global ACTIVE_JOB
     cleanup_old_jobs()
-    if count not in (5, 10, 20):
+    if count not in (1, 5, 10, 20):
         raise HTTPException(400, "Selecciona 5, 10 o 20 clips.")
     if not valid_source_url(url):
         raise HTTPException(400, "Pega un enlace HTTPS válido de YouTube o Kick.")
