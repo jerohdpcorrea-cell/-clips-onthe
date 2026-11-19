@@ -49,16 +49,24 @@ def main(path):
             center_x = (float(x) + float(face_w) / 2.0) / scale
             area = float(face_w * face_h)
             choices.append((center_x, area, float(face_w) / 320.0))
+        # Con varias caras en pantalla, registrar el grupo y no elegir
+        # arbitrariamente a una persona como protagonista.
+        if len(choices) >= 2:
+            centers.append({"t": float(second), "x": float(width / 2.0),
+                            "size": 0.0, "face_count": len(choices)})
+            continue
         if previous_x is None:
-            chosen_x, _, chosen_size = max(choices, key=lambda item: item[1])
+            chosen_x, _, chosen_size = choices[0]
         else:
-            nearest_x, nearest_area, nearest_size = min(choices, key=lambda item: abs(item[0] - previous_x))
-            if abs(nearest_x - previous_x) <= width * 0.30:
+            nearest_x, _, nearest_size = choices[0]
+            # Limitar saltos bruscos para evitar barridos repentinos.
+            if abs(nearest_x - previous_x) <= width * 0.22:
                 chosen_x, chosen_size = nearest_x, nearest_size
             else:
-                chosen_x, _, chosen_size = max(choices, key=lambda item: item[1])
+                chosen_x, chosen_size = previous_x, nearest_size
         previous_x = chosen_x
-        centers.append({"t": float(second), "x": float(chosen_x), "size": chosen_size})
+        centers.append({"t": float(second), "x": float(chosen_x),
+                        "size": chosen_size, "face_count": 1})
     cap.release()
     if len(centers) < max(3, int(len(sample_times) * 0.12)):
         return
