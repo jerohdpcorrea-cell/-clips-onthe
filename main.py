@@ -592,7 +592,8 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
                 )
                 candidates.append((score, start, length))
 
-        candidates.sort(reverse=True)
+        # En empates, preferir el momento más temprano para que la selección sea estable.
+        candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
         chosen = []
         for score, start, length in candidates:
             end = start + length
@@ -624,8 +625,10 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
             threshold = max(noise_floor * 1.15, statistics.fmean(segment) * 0.30)
             active_positions = [i for i, value in enumerate(segment) if value > threshold]
             if active_positions:
-                new_start = start + active_positions[0]
-                new_end = start + active_positions[-1] + 1
+                # Mantener contexto antes y después del pico para que el clip
+                # no empiece justo en mitad de una frase ni termine de golpe.
+                new_start = max(start, start + active_positions[0] - 2)
+                new_end = min(end, start + active_positions[-1] + 1 + 3)
                 if MIN_CLIP_SECONDS <= new_end - new_start <= MAX_CLIP_SECONDS:
                     start, end = new_start, new_end
             refined.append((start, end, score))
