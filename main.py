@@ -180,11 +180,10 @@ footer{color:#626b7e;font-size:10px;margin:24px 0 0;max-width:760px}
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y configura cómo quieres encontrar los mejores momentos.</p></div><span class="panel-icon">↗</span></div><form id="form">
 <label for="url">Enlace del vídeo</label><input id="url" name="url" type="url" required placeholder="Pega aquí tu enlace de Kick o YouTube" autocomplete="url">
 <div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div><div><label for="mode">Estilo de selección</label><select id="mode" name="mode"><option value="balanced" selected>Equilibrado</option><option value="reactions">Reacciones y picos</option><option value="conversation">Conversación</option><option value="gameplay">Acción y gameplay</option></select></div></div>
-<label class="tracking-toggle"><input id="follow_face" name="follow_face" type="checkbox" value="on"><span><b>Seguimiento de rostro opcional</b><small>Si detecta una cámara clara, centra el rostro. Si no, conserva la imagen completa.</small></span></label>
 <p class="form-hint">La selección analiza actividad, picos y variación del audio. El modo cambia el peso de esas señales; no promete viralidad ni sustituye una revisión humana.</p>
 <button id="btn" type="submit">ANALIZAR Y GENERAR CLIPS <span>→</span></button>
 </form><div id="result" aria-live="polite"></div></section>
-<aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Seguimiento facial ligero si se activa.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
+<aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Encuadre automático: grupo completo o seguimiento individual.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
 <footer>CLIPS.ONTHE · Herramienta independiente. El procesamiento depende de que el vídeo sea público y la plataforma permita descargarlo.</footer>
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
@@ -477,7 +476,7 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
             pass
 
 def build_face_crop_filter(source_path):
-    """Build a smoothed, low-resolution face-follow crop; return empty on uncertainty."""
+    """Track a lone face; keep the full scene whenever a group is present."""
     try:
         tracker = Path(__file__).with_name("face_tracker.py")
         result = subprocess.run(
@@ -493,8 +492,10 @@ def build_face_crop_filter(source_path):
         face_sizes = [float(item.get("size") or 0) for item in centers]
         if width < 2 or height < 2 or len(centers) < 3:
             return ""
-        # No acercar una cámara facial pequeña dentro de una transmisión:
-        # se conserva la escena completa para no ocultar el juego o contexto.
+        # Si se detecta un grupo de forma repetida, jamás recortar a una sola cara.
+        group_samples = sum(1 for item in centers if int(item.get("face_count") or 1) >= 2)
+        if group_samples >= max(2, int(math.ceil(len(centers) * 0.12))):
+            return ""
         if not face_sizes or statistics.median(face_sizes) < 0.08:
             return ""
         crop_height = height - (height % 2)
@@ -888,7 +889,7 @@ def health():
     return {"status": "ok", "service": "CLIPS.ONTHE"}
 
 @app.post("/api/clips")
-def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5), mode: str = Form("balanced"), follow_face: bool = Form(False)):
+def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5), mode: str = Form("balanced"), follow_face: bool = Form(True)):
     global ACTIVE_JOB
     cleanup_old_jobs()
     if count not in (1, 5, 10, 20):
