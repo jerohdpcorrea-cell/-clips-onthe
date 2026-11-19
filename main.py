@@ -682,9 +682,9 @@ def process_job(job_id, url, count):
             has_subtitles = write_clip_srt(
                 caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
             )
-            # Una sola pasada de escalado/corte: evita el doble render y el blur
-            # que agotaban el tiempo de CPU en el plan gratuito de Render.
-            video_filter = "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1"
+            # Ajustar la imagen completa dentro del lienzo vertical sin recortar
+            # bordes; rellenar el espacio sobrante con negro en una sola pasada.
+            video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
             if has_subtitles:
                 video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
             video_filter += "[v]"
