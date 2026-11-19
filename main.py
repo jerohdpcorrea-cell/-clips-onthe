@@ -289,6 +289,19 @@ def cleanup_old_jobs():
         except OSError:
             pass
 
+def cleanup_worker():
+    # Limpieza ligera cada 15 minutos para que los trabajos caduquen
+    # aunque el usuario no vuelva a abrir el historial.
+    while True:
+        time.sleep(15 * 60)
+        cleanup_old_jobs()
+
+
+@app.on_event("startup")
+def start_cleanup_worker():
+    threading.Thread(target=cleanup_worker, name="clip-history-cleanup", daemon=True).start()
+
+
 def folder_size(path):
     total = 0
     for item in path.rglob("*"):
