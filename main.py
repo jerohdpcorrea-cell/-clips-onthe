@@ -305,7 +305,7 @@ main{width:min(1440px,calc(100% - 130px));margin:0 28px 0 108px;padding:22px 0 6
 footer{color:#737b91}
 @media(max-width:900px){.rail{width:62px}.rail-logo{width:39px;height:39px}main{width:calc(100% - 92px);margin-left:78px;margin-right:14px}.hero{padding:26px;gap:18px}.workspace{grid-template-columns:minmax(0,1fr) 270px}}
 @media(max-width:680px){.rail{position:sticky;top:0;inset:auto;width:100%;height:58px;flex-direction:row;justify-content:flex-start;padding:7px 14px;gap:12px;border-right:0;border-bottom:1px solid #25283a}.rail-logo{width:36px;height:36px}.rail-line,.rail-bottom{display:none}.rail-link{width:38px;height:38px}.rail-link:last-of-type{margin-left:auto}main{width:calc(100% - 26px);margin:0 auto;padding:16px 0 35px}.topline{margin-bottom:22px}.hero{grid-template-columns:1fr;padding:25px 20px;min-height:0;border-radius:19px;margin-bottom:18px}.hero .brand{font-size:58px;letter-spacing:-3.5px}.hero-visual{min-height:200px}.workspace{grid-template-columns:1fr}.panel{padding:20px 15px;border-radius:18px}.panel-heading h2{font-size:26px}.side-panel{display:block}.form-grid{gap:9px}.clip-card{grid-template-columns:1fr 100px}.clip-card video{grid-column:2;grid-row:1/4;max-height:190px}}
-</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" aria-label="Inicio">⌂</a><a class="rail-link" href="#form" aria-label="Crear clips">✦</a><a class="rail-link" href="#result" aria-label="Resultados">▣</a><a class="rail-link" href="#history-panel" aria-label="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
+</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y configura cómo quieres encontrar los mejores momentos.</p></div><span class="panel-icon">↗</span></div><form id="form">
@@ -402,6 +402,25 @@ form.addEventListener("submit",async e=>{
   if(open)loadHistory();
  });
  window.addEventListener("focus",()=>{if(panel.classList.contains("open"))loadHistory();});
+ /* Navegación funcional del rail lateral */
+ const navLinks=[...document.querySelectorAll(".rail-link[data-nav]")];
+ const goTo=(target)=>target?.scrollIntoView({behavior:"smooth",block:"start"});
+ navLinks.forEach(link=>link.addEventListener("click",event=>{
+  event.preventDefault();
+  navLinks.forEach(item=>item.classList.toggle("active",item===link));
+  const action=link.dataset.nav;
+  if(action==="home"){goTo(document.querySelector("#top"));return;}
+  if(action==="create"){goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),450);return;}
+  if(action==="results"){
+   goTo(result);
+   if(!result.textContent.trim())result.innerHTML='<p class="muted nav-hint">Todavía no hay resultados. Pega un enlace y pulsa «Analizar y generar clips» para empezar.</p>';
+   return;
+  }
+  if(action==="history"){
+   if(!panel.classList.contains("open"))toggle.click();
+   goTo(panel);
+  }
+ }));
 })();
 </script></body></html>"""
 
