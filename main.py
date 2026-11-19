@@ -79,8 +79,50 @@ button:disabled{opacity:.62}
 .download{display:inline-flex;align-items:center;gap:7px;background:#251b3a;border:1px solid #594276;border-radius:10px;padding:9px 13px;color:#e5d8ff;font-size:13px}
 footer{color:#777188;line-height:1.6;margin:22px auto 0;max-width:560px}
 @media(max-width:520px){body{padding:20px 13px}main{margin:3vh auto}.panel{border-radius:19px}.tag{font-size:14px}.clip-card video{max-height:460px}}
+
+/* CLIPS STUDIO — redesigned creator workspace */
+:root{color-scheme:dark}
+body{padding:0;background:#08090f;color:#f4f3fa;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 14% 0%,#5b21b633,transparent 36%),radial-gradient(ellipse at 95% 24%,#0e749033,transparent 30%);z-index:-1}
+main{width:min(1180px,calc(100% - 40px));max-width:none;margin:0 auto;padding:34px 0 56px}
+.topline{height:46px;margin:0 0 44px;display:flex;align-items:center;gap:12px;color:#c9c5d6;font-size:11px;letter-spacing:2.1px}
+.status-dot{width:9px;height:9px;background:#a3e635;box-shadow:0 0 15px #a3e655;border-radius:50%}
+.topline-pill{margin-left:auto;border:1px solid #353448;background:#151522;border-radius:99px;padding:7px 12px;color:#b7a6ff;font-size:10px}
+.brand{font-size:clamp(42px,7vw,76px);letter-spacing:-4px;line-height:.98;font-weight:950;margin:0}
+.brand span{background:linear-gradient(100deg,#b9a3ff,#7c5cff 55%,#4dd7c4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{font-size:16px;color:#a8a6b8;line-height:1.7;max-width:660px;margin:18px 0 24px}
+.feature-row{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 32px}
+.feature-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid #29283b;background:#11121d;border-radius:9px;padding:9px 12px;color:#c8c4d8;font-size:11px;letter-spacing:.2px}
+.panel{position:relative;background:linear-gradient(145deg,#171827,#10111b 75%);border:1px solid #343348;border-radius:24px;padding:clamp(22px,4vw,38px);box-shadow:0 28px 90px #0008}
+.panel:before{content:"";position:absolute;left:34px;top:-1px;width:110px;height:2px;background:linear-gradient(90deg,#a78bfa,#43d7c5);border-radius:9px}
+#form{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:0 16px;align-items:end}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1.3px;font-weight:850;color:#b9b5ca;margin:15px 0 10px}
+#form label[for=url],#url{grid-column:1/-1}
+input,select{width:100%;min-width:0;background:#0a0b13;border:1px solid #37364b;border-radius:12px;padding:17px 16px;color:#fff;font-size:15px;outline:none;transition:border .18s,box-shadow .18s}
+input:focus,select:focus{border-color:#9a82ff;box-shadow:0 0 0 3px #9a82ff20}
+input::placeholder{color:#68677a}
+#form label[for=count],#count{grid-column:1}
+#count{min-height:54px}
+.form-hint{grid-column:1/-1;margin:12px 0 0;color:#89879d;font-size:12px;line-height:1.55}
+button{grid-column:2;grid-row:3;width:100%;margin:0;min-height:54px;border:0;border-radius:12px;background:linear-gradient(105deg,#7655ed,#9874ff 58%,#43c9bd);color:#090912;font-weight:950;font-size:12px;letter-spacing:1px;box-shadow:0 12px 32px #7255ed33;transition:transform .18s,filter .18s}
+button:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.08)}
+button:disabled{opacity:.55;cursor:wait}
+#result{margin-top:25px;line-height:1.6;overflow-wrap:anywhere}
+#result:empty{display:none}
+#result:not(:empty){padding-top:22px;border-top:1px solid #302f42}
+.ok{color:#a6f0ce;font-size:13px;font-weight:750}
+.muted,.progress-message{color:#aaa7bc;font-size:13px;line-height:1.6}
+.progress-track{height:8px;background:#29283a;border-radius:99px;overflow:hidden;margin:14px 0 22px}
+.progress-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#8b6bff,#43d7c4);box-shadow:0 0 16px #8b6bff66;transition:width .35s}
+.clip-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,220px);gap:8px 22px;align-items:center;padding:22px 0;border-top:1px solid #302f42}
+.clip-card h3{grid-column:1;margin:0;font-size:15px;color:#f0eef8}
+.clip-card video{grid-column:2;grid-row:1/3;width:100%;max-height:390px;aspect-ratio:9/16;object-fit:contain;background:#050508;border:1px solid #343348;border-radius:13px}
+.download{grid-column:1;grid-row:2;justify-self:start;display:inline-flex;align-items:center;margin:0;background:#211e35;border:1px solid #514477;border-radius:9px;padding:10px 14px;color:#d8ccff;font-size:12px;font-weight:800;text-decoration:none}
+.error{color:#ffaaaa;background:#351c26;border:1px solid #633442;border-radius:10px;padding:13px}
+footer{color:#68677c;font-size:11px;text-align:left;margin:22px 0 0;line-height:1.7}
+@media(max-width:680px){main{width:calc(100% - 28px);padding:22px 0 38px}.topline{margin-bottom:32px}.brand{letter-spacing:-2.5px}.tag{font-size:14px}.panel{border-radius:18px;padding:20px 16px}#form{grid-template-columns:1fr}#form label[for=count],#count,.form-hint,button{grid-column:1;grid-row:auto}button{margin-top:12px}.clip-card{grid-template-columns:1fr 112px;gap:8px 14px}.clip-card video{grid-column:2;grid-row:1/3;max-height:210px}.download{grid-column:1;grid-row:2}.feature-chip{font-size:10px;padding:8px 9px}}
 </style></head><body><main>
-<div class="topline"><span class="status-dot"></span> CREADOR DE CLIPS PARA REDES <span class="topline-pill">BETA</span></div><h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Convierte tus directos en clips verticales listos para TikTok. Selecciona los momentos, revisa el resultado y descarga cada clip mientras se procesa el resto.</p><div class="feature-row"><span class="feature-chip">9:16 vertical</span><span class="feature-chip">Subtítulos disponibles</span><span class="feature-chip">Seguimiento de rostro</span></div>
+<div class="topline"><span class="status-dot"></span> CLIPS STUDIO <span class="topline-pill">CREATOR WORKSPACE · BETA</span></div><h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Tu directo. Tus mejores momentos. Clips verticales preparados para publicar. Genera, revisa y descarga desde un solo espacio.</p><div class="feature-row"><span class="feature-chip">▣ 720 × 1280 HD</span><span class="feature-chip">↗ Formato TikTok 9:16</span><span class="feature-chip">◉ Seguimiento de rostro</span><span class="feature-chip">CC Subtítulos disponibles</span></div>
 <section class="panel"><form id="form">
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
@@ -438,7 +480,7 @@ def process_job(job_id, url, count):
             JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
 
         meta_options = {
-            "format": "best[height<=480][ext=mp4]/best[height<=480]/worst[ext=mp4]/worst",
+            "format": "best[height<=720][ext=mp4]/best[height<=720]/worst[ext=mp4]/worst",
             "noplaylist": True, "quiet": True, "no_warnings": True,
             "socket_timeout": 20, "retries": 2, "extractor_retries": 2,
         }
@@ -587,7 +629,7 @@ def process_job(job_id, url, count):
         def download_one(index, clip_range):
             output_template = str(source_dir / ("source_%02d.%%(ext)s" % index))
             options = {
-                "format": "best[height<=480][ext=mp4]/best[height<=480]/worst[ext=mp4]/worst",
+                "format": "best[height<=720][ext=mp4]/best[height<=720]/worst[ext=mp4]/worst",
                 "outtmpl": output_template,
                 "noplaylist": True, "quiet": True, "no_warnings": True,
                 "socket_timeout": 20, "retries": 2, "fragment_retries": 2,
@@ -645,8 +687,8 @@ def process_job(job_id, url, count):
                 print("CLIPS.ONTHE face-follow crop enabled for %s clip %d" % (job_id, i), flush=True)
             video_filter = (
                 "[0:v]split=2[bg][fg];"
-                "[bg]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=12:3,scale=540:960[bg];"
-                "[fg]" + face_crop + "scale=540:960:force_original_aspect_ratio=decrease[fg];"
+                "[bg]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,boxblur=16:4,scale=720:1280[bg];"
+                "[fg]" + face_crop + "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
                 "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
             )
             if has_subtitles:
@@ -736,7 +778,7 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
     global ACTIVE_JOB
     cleanup_old_jobs()
     if count not in (1, 5, 10, 20):
-        raise HTTPException(400, "Selecciona 5, 10 o 20 clips.")
+        raise HTTPException(400, "Selecciona 1, 5, 10 o 20 clips.")
     if not valid_source_url(url):
         raise HTTPException(400, "Pega un enlace HTTPS válido de YouTube o Kick.")
     if folder_size(BASE) > MAX_STORAGE_BYTES:
