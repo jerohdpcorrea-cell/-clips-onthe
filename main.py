@@ -30,9 +30,10 @@ MAX_VIDEO_SECONDS = 6 * 60 * 60
 MIN_CLIP_SECONDS = 20
 MAX_CLIP_SECONDS = 60
 MAX_STORAGE_BYTES = 1500 * 1024 * 1024
-JOB_TTL_SECONDS = 8 * 60 * 60
+JOB_TTL_SECONDS = 48 * 60 * 60
 ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "kick.com", "www.kick.com"}
 JOBS = {}
+JOB_CREATED_AT = {}
 JOBS_LOCK = threading.Lock()
 ACTIVE_JOB = False
 
@@ -155,6 +156,24 @@ main{width:min(1240px,calc(100% - 48px));padding:24px 0 48px}
 footer{color:#626b7e;font-size:10px;margin:24px 0 0;max-width:760px}
 @media(max-width:850px){.hero{grid-template-columns:1fr .75fr;gap:18px}.workspace{grid-template-columns:1fr 250px}}
 @media(max-width:680px){main{width:calc(100% - 26px);padding:14px 0 32px}.topline{margin-bottom:28px}.hero{grid-template-columns:1fr;margin-bottom:24px}.hero-visual{display:none}.hero .brand{font-size:52px;letter-spacing:-3px}.tag{font-size:13px}.workspace{grid-template-columns:1fr}.side-panel{display:none}.panel{padding:19px 15px;border-radius:16px}.panel-heading h2{font-size:22px}#form{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr;gap:9px}.tracking-toggle,#form>.form-hint,#form>button{grid-column:1}.clip-card{grid-template-columns:1fr 100px;gap:8px 12px}.clip-card video{grid-column:2;grid-row:1/4;max-height:190px}.clip-meta{grid-column:1;grid-row:2}.clip-card .download{grid-column:1;grid-row:3}}
+.history-toolbar{display:flex;justify-content:flex-end;margin:-12px 0 18px}
+#history-toggle{width:auto;min-height:42px;margin:0;padding:0 16px;border:1px solid #3b4054;border-radius:10px;background:#151a27;color:#dcd9ec;font-size:11px;letter-spacing:.5px;box-shadow:none}
+#history-toggle:hover{border-color:#8c79ff}
+#history-panel{display:none;margin:0 0 22px;padding:20px;background:#111620;border:1px solid #30364a;border-radius:16px}
+#history-panel.open{display:block}
+.history-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.history-head h2{font-size:17px;margin:0}
+.history-note{font-size:10px;color:#858da0;margin:5px 0 14px}
+.history-job{border-top:1px solid #2b3242;padding:14px 0}
+.history-job h3{font-size:12px;margin:0 0 5px;overflow-wrap:anywhere}
+.history-job p{font-size:10px;color:#9299aa;margin:4px 0;line-height:1.5}
+.history-status{display:inline-block;border:1px solid #41445a;border-radius:6px;padding:4px 7px;font-size:9px;color:#c9c2ff;margin:3px 0 7px}
+.history-empty{font-size:12px;color:#8f96a9;padding:14px 0}
+.history-clips{margin-top:8px}
+.history-clips .clip-card{grid-template-columns:minmax(0,1fr) 100px;gap:8px 12px;padding:12px 0}
+.history-clips .clip-card video{grid-column:2;grid-row:1/3;max-height:170px}
+.history-clips .clip-card .download{grid-column:1;grid-row:2}
+@media(max-width:680px){.history-toolbar{margin:-5px 0 15px}#history-panel{padding:15px}.history-clips .clip-card{grid-template-columns:minmax(0,1fr) 88px}}
 </style></head><body><main>
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span><span>Subtítulos disponibles</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
@@ -212,16 +231,61 @@ form.addEventListener("submit",async e=>{
  }catch(err){result.innerHTML="<p class='error'>"+String(err.message).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p>";}
  finally{btn.disabled=false;}
 });
+/* Historial desplegable de trabajos enviados */
+(function(){
+ const workspace=document.querySelector(".workspace");
+ if(!workspace)return;
+ const toolbar=document.createElement("div");
+ toolbar.className="history-toolbar";
+ toolbar.innerHTML='<button type="button" id="history-toggle" aria-expanded="false">▤ &nbsp; MIS CLIPS</button>';
+ const panel=document.createElement("section");
+ panel.id="history-panel";
+ panel.setAttribute("aria-live","polite");
+ panel.innerHTML='<div class="history-head"><h2>Historial de clips</h2><span class="history-status">48 HORAS</span></div><p class="history-note">Tus trabajos y clips estarán disponibles durante 48 horas desde que los enviaste.</p><div id="history-list" class="history-empty">Pulsa actualizar para consultar tus trabajos.</div>';
+ workspace.parentNode.insertBefore(toolbar,workspace);
+ workspace.parentNode.insertBefore(panel,workspace);
+ const toggle=toolbar.querySelector("button");
+ const list=panel.querySelector("#history-list");
+ const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ const labels={queued:"En cola",processing:"Procesando",done:"Terminado",partial:"Parcial",failed:"Fallido"};
+ async function loadHistory(){
+  list.className="history-empty";list.textContent="Cargando historial…";
+  try{
+   const response=await fetch("/api/jobs",{cache:"no-store"});
+   const data=await readJson(response);
+   if(!response.ok)throw new Error(data.detail||"No se pudo cargar el historial.");
+   const jobs=data.jobs||[];
+   if(!jobs.length){list.className="history-empty";list.textContent="Todavía no has enviado ningún vídeo.";return;}
+   list.className="";
+   list.innerHTML=jobs.map(job=>{
+    const created=new Date(job.created_at*1000).toLocaleString("es");
+    const expires=new Date(job.expires_at*1000).toLocaleString("es");
+    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span></div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
+    return '<article class="history-job"><h3>Trabajo · '+esc(job.job_id.slice(0,8))+'</h3><span class="history-status">'+esc(labels[job.status]||job.status)+'</span><p>Enviado: '+esc(created)+'</p><p>Eliminación automática: '+esc(expires)+'</p><p>'+esc(job.message||"")+'</p>'+(clips?'<div class="history-clips">'+clips+'</div>':"")+'</article>';
+   }).join("");
+  }catch(error){list.className="history-empty";list.textContent=error.message||"No se pudo cargar el historial.";}
+ }
+ toggle.addEventListener("click",()=>{
+  const open=panel.classList.toggle("open");
+  toggle.setAttribute("aria-expanded",String(open));
+  toggle.textContent=open?"▤  OCULTAR MIS CLIPS":"▤  MIS CLIPS";
+  if(open)loadHistory();
+ });
+ window.addEventListener("focus",()=>{if(panel.classList.contains("open"))loadHistory();});
+})();
 </script></body></html>"""
 
 def cleanup_old_jobs():
     now = time.time()
     for folder in BASE.iterdir():
         try:
-            if folder.is_dir() and now - folder.stat().st_mtime > JOB_TTL_SECONDS:
-                shutil.rmtree(folder, ignore_errors=True)
-                with JOBS_LOCK:
-                    JOBS.pop(folder.name, None)
+            if folder.is_dir():
+                created_at = JOB_CREATED_AT.get(folder.name, folder.stat().st_mtime)
+                if now - created_at > JOB_TTL_SECONDS:
+                    shutil.rmtree(folder, ignore_errors=True)
+                    with JOBS_LOCK:
+                        JOBS.pop(folder.name, None)
+                        JOB_CREATED_AT.pop(folder.name, None)
         except OSError:
             pass
 
@@ -828,12 +892,36 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
             ACTIVE_JOB = False
         raise HTTPException(503, "No se pudo reservar espacio temporal. Inténtalo de nuevo.")
     with JOBS_LOCK:
+        JOB_CREATED_AT[job_id] = time.time()
         JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": []}
     background_tasks.add_task(process_job, job_id, url, count, mode, follow_face)
     return {"job_id": job_id, "status": "queued"}
 
+@app.get("/api/jobs")
+def list_jobs():
+    cleanup_old_jobs()
+    now = time.time()
+    with JOBS_LOCK:
+        items = []
+        for job_id, job in JOBS.items():
+            created_at = JOB_CREATED_AT.get(job_id)
+            if created_at is None:
+                continue
+            items.append({
+                "job_id": job_id,
+                "status": job.get("status", "processing"),
+                "message": job.get("message", ""),
+                "clips": list(job.get("clips") or []),
+                "created_at": created_at,
+                "expires_at": created_at + JOB_TTL_SECONDS,
+                "remaining_seconds": max(0, int(created_at + JOB_TTL_SECONDS - now))
+            })
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    return {"jobs": items, "retention_hours": 48}
+
 @app.get("/api/jobs/{job_id}")
 def job_status(job_id: str):
+    cleanup_old_jobs()
     if not re.fullmatch(r"[a-f0-9]{32}", job_id):
         raise HTTPException(404, "Trabajo no encontrado.")
     with JOBS_LOCK:
@@ -844,6 +932,7 @@ def job_status(job_id: str):
 
 @app.get("/download/{job_id}/{filename}")
 def download(job_id: str, filename: str):
+    cleanup_old_jobs()
     if not re.fullmatch(r"[a-f0-9]{32}", job_id) or not re.fullmatch(r"clip_[0-9]{2}\.mp4", filename):
         raise HTTPException(404, "Clip no encontrado.")
     path = BASE / job_id / filename
