@@ -494,7 +494,7 @@ def build_face_crop_filter(source_path):
             return ""
         # Si se detecta un grupo de forma repetida, jamás recortar a una sola cara.
         group_samples = sum(1 for item in centers if int(item.get("face_count") or 1) >= 2)
-        if group_samples >= max(2, int(math.ceil(len(centers) * 0.12))):
+        if group_samples >= 1:
             return ""
         if not face_sizes or statistics.median(face_sizes) < 0.08:
             return ""
