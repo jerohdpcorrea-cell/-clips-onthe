@@ -412,8 +412,8 @@ form.addEventListener("submit",async e=>{
   if(action==="home"){goTo(document.querySelector("#top"));return;}
   if(action==="create"){goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),450);return;}
   if(action==="results"){
-   goTo(result);
    if(!result.textContent.trim())result.innerHTML='<p class="muted nav-hint">Todavía no hay resultados. Pega un enlace y pulsa «Analizar y generar clips» para empezar.</p>';
+   goTo(result);
    return;
   }
   if(action==="history"){
