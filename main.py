@@ -122,7 +122,7 @@ button:disabled{opacity:.55;cursor:wait}
 footer{color:#68677c;font-size:11px;text-align:left;margin:22px 0 0;line-height:1.7}
 @media(max-width:680px){main{width:calc(100% - 28px);padding:22px 0 38px}.topline{margin-bottom:32px}.brand{letter-spacing:-2.5px}.tag{font-size:14px}.panel{border-radius:18px;padding:20px 16px}#form{grid-template-columns:1fr}#form label[for=count],#count,.form-hint,button{grid-column:1;grid-row:auto}button{margin-top:12px}.clip-card{grid-template-columns:1fr 112px;gap:8px 14px}.clip-card video{grid-column:2;grid-row:1/3;max-height:210px}.download{grid-column:1;grid-row:2}.feature-chip{font-size:10px;padding:8px 9px}}
 </style></head><body><main>
-<div class="topline"><span class="status-dot"></span> CLIPS STUDIO <span class="topline-pill">CREATOR WORKSPACE · BETA</span></div><h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Tu directo. Tus mejores momentos. Clips verticales preparados para publicar. Genera, revisa y descarga desde un solo espacio.</p><div class="feature-row"><span class="feature-chip">▣ 720 × 1280 HD</span><span class="feature-chip">↗ Formato TikTok 9:16</span><span class="feature-chip">◉ Seguimiento de rostro</span><span class="feature-chip">CC Subtítulos disponibles</span></div>
+<div class="topline"><span class="status-dot"></span> CLIPS STUDIO <span class="topline-pill">CREATOR WORKSPACE · BETA</span></div><h1 class="brand">CLIPS<span>.ONTHE</span></h1><p class="tag">Tu directo. Tus mejores momentos. Clips verticales preparados para publicar. Genera, revisa y descarga desde un solo espacio.</p><div class="feature-row"><span class="feature-chip">▣ 720 × 1280 HD</span><span class="feature-chip">↗ Formato TikTok 9:16</span><span class="feature-chip">◉ Encuadre vertical 9:16</span><span class="feature-chip">CC Subtítulos disponibles</span></div>
 <section class="panel"><form id="form">
 <label for="url">Enlace del vídeo de YouTube o Kick</label>
 <input id="url" name="url" type="url" required placeholder="https://..." autocomplete="url">
@@ -682,15 +682,9 @@ def process_job(job_id, url, count):
             has_subtitles = write_clip_srt(
                 caption_file, clip_range["start_time"], clip_range["end_time"], srt_path
             )
-            face_crop = build_face_crop_filter(source)
-            if face_crop:
-                print("CLIPS.ONTHE face-follow crop enabled for %s clip %d" % (job_id, i), flush=True)
-            video_filter = (
-                "[0:v]split=2[bg][fg];"
-                "[bg]scale=360:640:force_original_aspect_ratio=increase,crop=360:640,boxblur=16:4,scale=720:1280[bg];"
-                "[fg]" + face_crop + "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
-                "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
-            )
+            # Una sola pasada de escalado/corte: evita el doble render y el blur
+            # que agotaban el tiempo de CPU en el plan gratuito de Render.
+            video_filter = "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1"
             if has_subtitles:
                 video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
             video_filter += "[v]"
