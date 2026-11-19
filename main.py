@@ -706,17 +706,38 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             ]
             try:
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
-            except subprocess.CalledProcessError:
-                if not has_subtitles:
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                # Si el seguimiento facial falla o tarda demasiado, conservar
+                # el clip con el encuadre completo antes que perder el resultado.
+                if face_crop_filter:
+                    print("CLIPS.ONTHE face reframe failed for %s clip %d; retrying full frame" % (job_id, i), flush=True)
+                    face_crop_filter = ""
+                    video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
+                    if has_subtitles:
+                        video_filter += ",subtitles='%s':force_style='FontName=Arial,FontSize=18,Outline=2,Shadow=1,MarginV=70'" % str(srt_path)
+                    video_filter += "[v]"
+                    ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
+                    try:
+                        subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
+                    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                        if not has_subtitles:
+                            raise
+                        has_subtitles = False
+                        srt_path.unlink(missing_ok=True)
+                        video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
+                        ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
+                        subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
+                elif has_subtitles:
+                    # Si los subtítulos VTT son incompatibles, producir el clip
+                    # sin texto antes que perder el vídeo.
+                    print("CLIPS.ONTHE subtitle rendering failed for %s clip %d; retrying without captions" % (job_id, i), flush=True)
+                    has_subtitles = False
+                    srt_path.unlink(missing_ok=True)
+                    video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
+                    ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
+                    subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
+                else:
                     raise
-                # Los subtítulos son opcionales: si una fuente entrega VTT
-                # incompatible, producir el clip sin texto antes que perderlo.
-                print("CLIPS.ONTHE subtitle rendering failed for %s clip %d; retrying without captions" % (job_id, i), flush=True)
-                has_subtitles = False
-                srt_path.unlink(missing_ok=True)
-                video_filter = video_filter.rsplit(",subtitles=", 1)[0] + "[v]"
-                ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
-                subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
             clips.append({"name": "Clip %d%s" % (i, " · subtítulos" if has_subtitles else ""), "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
             try:
