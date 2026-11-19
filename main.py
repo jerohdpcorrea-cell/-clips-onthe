@@ -467,7 +467,7 @@ def safe_error(exc):
     if "private" in msg or "login" in msg or "members-only" in msg:
         return "El vídeo es privado o requiere iniciar sesión. Usa un vídeo público."
     if "max-filesize" in msg or "file is larger" in msg:
-        return "El vídeo supera el límite de tamaño de 650 MB."
+        return "Un fragmento supera el límite temporal de 160 MB. Prueba con otro vídeo o una resolución más baja."
     if "duration" in msg or "demasiado largo" in msg:
         return "El vídeo supera el límite de duración de 6 horas."
     return "No se pudo procesar el vídeo. Comprueba que el enlace sea público y vuelve a intentarlo."
@@ -629,6 +629,15 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                     "clips": list(current.get("clips") or [])
                 }
 
+        def clip_download_progress(index, data):
+            # Limitar bytes reales descargados por fragmento. No usar la
+            # estimación del vídeo completo: algunos HLS de Kick la inflan.
+            if data.get("status") == "downloading":
+                downloaded = data.get("downloaded_bytes") or 0
+                if downloaded > MAX_DOWNLOAD_BYTES:
+                    raise yt_dlp.utils.DownloadError("max-filesize")
+            update_progress(index, data)
+
         def download_one(index, clip_range):
             output_template = str(source_dir / ("source_%02d.%%(ext)s" % index))
             options = {
@@ -637,7 +646,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 "noplaylist": True, "quiet": True, "no_warnings": True,
                 "socket_timeout": 20, "retries": 2, "fragment_retries": 2,
                 "extractor_retries": 2, "concurrent_fragment_downloads": 1,
-                "progress_hooks": [lambda data, clip_index=index: update_progress(clip_index, data)],
+                "progress_hooks": [lambda data, clip_index=index: clip_download_progress(clip_index, data)],
                 "download_ranges": lambda video_info, ydl: [clip_range],
                 "force_keyframes_at_cuts": False,
                 "overwrites": True,
