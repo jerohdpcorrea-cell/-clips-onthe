@@ -506,7 +506,31 @@ body.history-view-mode #history-view{display:block}
 .history-clip-info a{margin-top:auto;color:#e4d9a4;font-size:10px;font-weight:850;text-decoration:none}
 .history-clip video{width:100%;height:150px;object-fit:contain;background:#000;border-radius:8px}
 @media(max-width:680px){#history-view{padding:18px 0 40px}#history-view .clips-view-head{align-items:stretch}#history-refresh{width:100%}.history-job{padding:15px}.history-job-head{flex-direction:column}.history-clips-grid{grid-template-columns:1fr}.history-clip{grid-template-columns:minmax(0,1fr) 92px}.history-clip video{height:130px}}
-</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-view" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
+
+/* NAVIGATION UX: labels visibles y navegación cómoda en móvil */
+.rail{width:218px;align-items:stretch;padding:24px 16px;gap:12px}
+.rail-logo{margin:0 auto 7px}
+.rail-line{width:100%;margin:5px 0 9px}
+.rail-link{width:100%;height:48px;display:flex;align-items:center;justify-content:flex-start;gap:14px;padding:0 14px;border:1px solid transparent;border-radius:12px;color:#aeb4c7;font-size:13px;font-weight:750;letter-spacing:.1px}
+.rail-symbol{width:24px;flex:0 0 24px;display:grid;place-items:center;font-size:19px;color:#9299ae}
+.rail-label{display:block;white-space:nowrap}
+.rail-link:hover,.rail-link.active{background:linear-gradient(100deg,#202638,#171d2b);border-color:#414a60;color:var(--acid)}
+.rail-link.active .rail-symbol{color:var(--acid)}
+.rail-link.active:after{left:-1px;top:9px;bottom:9px;width:3px}
+.rail-bottom{writing-mode:horizontal-tb;text-align:center;font-size:8px;color:#737b90;letter-spacing:1.8px}
+main{width:min(1280px,calc(100% - 266px));margin:0 28px 0 238px}
+@media(max-width:900px){.rail{width:190px;padding:20px 12px}main{width:calc(100% - 222px);margin-left:208px;margin-right:14px}}
+@media(max-width:680px){
+ .rail{position:sticky;top:0;inset:auto;width:100%;height:66px;flex-direction:row;justify-content:space-around;align-items:center;padding:7px 9px;gap:5px;background:#0c0e17ed;backdrop-filter:blur(16px)}
+ .rail-logo{width:38px;height:38px;flex:0 0 38px;margin:0 5px 0 0;border-radius:12px}
+ .rail-line,.rail-bottom{display:none}
+ .rail-link{width:auto;min-width:0;height:48px;flex:1;flex-direction:column;justify-content:center;gap:2px;padding:4px 2px;border-radius:10px;font-size:9px}
+ .rail-symbol{width:auto;flex:0 0 auto;font-size:17px;line-height:20px}
+ .rail-label{font-size:9px;line-height:12px;letter-spacing:0}
+ .rail-link.active:after{left:22%;right:22%;top:auto;bottom:-2px;width:auto;height:2px}
+ main{width:calc(100% - 26px);margin:0 auto;padding-top:16px}
+}
+</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio"><span class="rail-symbol">⌂</span><span class="rail-label">Inicio</span></a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips"><span class="rail-symbol">✦</span><span class="rail-label">Crear clips</span></a><a class="rail-link" href="#result" data-nav="results" aria-label="Mis clips" title="Mis clips"><span class="rail-symbol">▣</span><span class="rail-label">Mis clips</span></a><a class="rail-link" href="#history-view" data-nav="history" aria-label="Historial" title="Historial"><span class="rail-symbol">◷</span><span class="rail-label">Historial</span></a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y elige cuántos clips quieres generar.</p></div><span class="panel-icon">↗</span></div><form id="form">
