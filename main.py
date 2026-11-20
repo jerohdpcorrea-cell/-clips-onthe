@@ -1009,7 +1009,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             if face_crop_filter:
                 video_filter = face_crop_filter + "scale=720:1280,setsar=1"
             else:
-                video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
+                video_filter = "split=2[bgsrc][fgsrc];[bgsrc]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,eq=brightness=-0.32:saturation=0.72[bg];[fgsrc]scale=720:1280:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
             video_filter += "[v]"
             ffmpeg_command = [
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -1027,7 +1027,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 if not face_crop_filter:
                     raise
                 print("CLIPS.ONTHE face reframe failed for %s clip %d; retrying full frame" % (job_id, i), flush=True)
-                video_filter = "scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1[v]"
+                video_filter = "split=2[bgsrc][fgsrc];[bgsrc]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,eq=brightness=-0.32:saturation=0.72[bg];[fgsrc]scale=720:1280:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]"
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
