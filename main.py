@@ -532,6 +532,7 @@ historyView.id="history-view";
 historyView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">ACTIVIDAD Y PROGRESO</p><h1>Historial</h1><p>Tus trabajos siguen procesándose aunque cierres esta página. Aquí puedes volver a ver su progreso y los clips listos.</p></div><button type="button" id="history-refresh">↻ Actualizar</button></div><div id="history-stats" class="history-stats" aria-live="polite"></div><div id="history-list" class="history-list"><p class="history-empty">Cargando historial…</p></div>';
 document.querySelector("main").appendChild(historyView);
 document.querySelector("#history-refresh").addEventListener("click",loadHistory);
+setInterval(()=>{if(document.body.classList.contains("history-view-mode"))loadHistory()},5000);
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
 let renderedClipCount=0;
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
