@@ -113,6 +113,9 @@ def restore_state():
             if re.fullmatch(r"[a-f0-9]{32}", str(job_id)):
                 JOB_CREATED_AT[job_id] = float(created_at)
         persist_state(force=True)
+    except FileNotFoundError:
+        # First launch on an empty data directory is expected.
+        return
     except (OSError, ValueError, TypeError) as exc:
         print("CLIPS.ONTHE state restore warning: %s" % type(exc).__name__, flush=True)
 
