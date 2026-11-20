@@ -69,9 +69,15 @@ def persist_state(force=False):
 
 class PersistentStateDict(dict):
     """Persist top-level job mutations without changing existing job-processing code."""
+    def __init__(self, force_writes=False):
+        super().__init__()
+        self.force_writes = force_writes
+
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
-        persist_state(force=isinstance(value, dict) and value.get("status") in ("queued", "done", "partial", "failed"))
+        persist_state(force=self.force_writes or (
+            isinstance(value, dict) and value.get("status") in ("queued", "done", "partial", "failed")
+        ))
 
     def pop(self, key, *args):
         result = super().pop(key, *args)
@@ -80,7 +86,7 @@ class PersistentStateDict(dict):
 
 
 JOBS = PersistentStateDict()
-JOB_CREATED_AT = PersistentStateDict()
+JOB_CREATED_AT = PersistentStateDict(force_writes=True)
 
 
 def restore_state():
