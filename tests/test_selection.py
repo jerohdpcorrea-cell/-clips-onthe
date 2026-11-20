@@ -17,7 +17,7 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(set(lengths), {20, 30, 45, 60})
 
     def test_selection_does_not_overlap(self):
-        candidates = [(1.0, 10, 30), (0.99, 20, 30), (0.90, 80, 20)]
+        candidates = [(1.0, 10, 30), (0.99, 20, 30), (0.90, 80, 20), (0.85, 110, 20)]
         chosen = main.select_diverse_candidates(candidates, 3, 140)
         for previous, current in zip(chosen, chosen[1:]):
             self.assertLessEqual(previous[1], current[0])
