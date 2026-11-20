@@ -676,7 +676,7 @@ def detect_visible_crop(source_path):
              "-an", "-f", "null", "-"],
             capture_output=True, text=True, timeout=12
         )
-        matches = re.findall(r"crop=(\\d+):(\\d+):(\\d+):(\\d+)", result.stderr or "")
+        matches = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", result.stderr or "")
         if not matches:
             return None
         values = [int(round(statistics.median([int(item[i]) for item in matches]))) for i in range(4)]
