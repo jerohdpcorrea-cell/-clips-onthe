@@ -668,36 +668,47 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
             pass
 
 def detect_visible_crop(source_path):
-    """Detect embedded black bars so portrait-wrapped landscape footage can fill 9:16."""
+    """Detect letterboxing across the clip, not just its opening seconds."""
     try:
-        result = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-ss", "0.5", "-i", str(source_path),
-             "-t", "2.5", "-vf", "cropdetect=limit=24:round=2:reset=0",
-             "-an", "-f", "null", "-"],
-            capture_output=True, text=True, timeout=12
-        )
         probe = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0",
              "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", str(source_path)],
             capture_output=True, text=True, timeout=8
         )
         source_width, source_height = [int(v) for v in probe.stdout.strip().split("x", 1)]
-        # cropdetect can emit a negative width and x=source_width when a frame
-        # has only horizontal letterboxing. Keep its valid vertical bounds and
-        # use the complete source width instead of discarding the detection.
-        matches = re.findall(r"crop=(-?\\d+):(\\d+):(-?\\d+):(\\d+)", result.stderr or "")
+        duration_probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(source_path)],
+            capture_output=True, text=True, timeout=8
+        )
+        duration = max(1.0, float(duration_probe.stdout.strip() or 1.0))
+        # Sample the beginning, middle and end: Kick scenes can change layout
+        # during a clip, so a single opening sample often misses the real frame.
+        sample_times = sorted(set(min(max(0.0, duration - 0.7), value) for value in (
+            0.5, duration * 0.25, duration * 0.50, duration * 0.75, duration * 0.90
+        )))
         valid = []
-        for item in matches:
-            width, height, x, y = [int(value) for value in item]
-            if width <= 0 or x < 0 or x + width > source_width:
-                width, x = source_width, 0
-            if height <= 0 or y < 0 or y + height > source_height:
-                continue
-            if width < source_width * 0.55 or height < source_height * 0.18:
-                continue
-            if width >= source_width * 0.97 and height >= source_height * 0.97:
-                continue
-            valid.append((width, height, x, y))
+        for sample_time in sample_times:
+            result = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-ss", str(sample_time), "-i", str(source_path),
+                 "-t", "0.6", "-vf", "cropdetect=limit=24:round=2:reset=0",
+                 "-an", "-f", "null", "-"],
+                capture_output=True, text=True, timeout=10
+            )
+            matches = re.findall(r"crop=(-?\\d+):(\\d+):(-?\\d+):(\\d+)", result.stderr or "")
+            for item in matches:
+                width, height, x, y = [int(value) for value in item]
+                # cropdetect reports negative width for frames with only
+                # horizontal bars. In that case, retain the full source width.
+                if width <= 0 or x < 0 or x + width > source_width:
+                    width, x = source_width, 0
+                if height <= 0 or y < 0 or y + height > source_height:
+                    continue
+                if width < source_width * 0.55 or height < source_height * 0.18:
+                    continue
+                if width >= source_width * 0.97 and height >= source_height * 0.97:
+                    continue
+                valid.append((width, height, x, y))
         if not valid:
             return None
         values = [int(round(statistics.median([item[i] for item in valid]))) for i in range(4)]
@@ -708,7 +719,6 @@ def detect_visible_crop(source_path):
     except Exception as crop_exc:
         print("CLIPS.ONTHE content crop detection unavailable: %s" % crop_exc, flush=True)
         return None
-
 
 def full_frame_vertical_filter(content_crop=None):
     """Fill 9:16 with a soft, non-distracting backdrop and preserve the full scene."""
