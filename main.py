@@ -25,8 +25,13 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 
 app = FastAPI(title="CLIPS.ONTHE", version="2.0.0")
 
-BASE = Path("/tmp/clips-onthe")
+# Render persistent disks should be mounted at /var/data and configured with
+# CLIPS_DATA_DIR=/var/data/clips-onthe. /tmp remains a development/free-tier
+# fallback and is NOT durable across instance replacement or redeploys.
+DATA_DIR_CONFIGURED = bool(os.environ.get("CLIPS_DATA_DIR", "").strip())
+BASE = Path(os.environ.get("CLIPS_DATA_DIR") or "/tmp/clips-onthe").expanduser()
 BASE.mkdir(parents=True, exist_ok=True)
+STATE_FILE = BASE / "jobs-state.json"
 MAX_DOWNLOAD_BYTES = 160 * 1024 * 1024
 MAX_AUDIO_ANALYSIS_SECONDS = 20 * 60
 MAX_VIDEO_SECONDS = 24 * 60 * 60
@@ -35,10 +40,84 @@ MAX_CLIP_SECONDS = 60
 MAX_STORAGE_BYTES = 1500 * 1024 * 1024
 JOB_TTL_SECONDS = 48 * 60 * 60
 ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "kick.com", "www.kick.com"}
-JOBS = {}
-JOB_CREATED_AT = {}
-JOBS_LOCK = threading.Lock()
+JOBS_LOCK = threading.RLock()
+STATE_WRITE_LOCK = threading.Lock()
+_LAST_STATE_WRITE = 0.0
 ACTIVE_JOB = False
+
+
+def persist_state(force=False):
+    """Atomically save job metadata; video files live beside this state file."""
+    global _LAST_STATE_WRITE
+    now = time.monotonic()
+    with STATE_WRITE_LOCK:
+        if not force and now - _LAST_STATE_WRITE < 1.0:
+            return
+        snapshot = {
+            "version": 1,
+            "jobs": dict(JOBS),
+            "created_at": dict(JOB_CREATED_AT),
+        }
+        temporary = STATE_FILE.with_suffix(".tmp")
+        try:
+            temporary.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+            temporary.replace(STATE_FILE)
+            _LAST_STATE_WRITE = now
+        except (OSError, TypeError, ValueError) as exc:
+            print("CLIPS.ONTHE state persistence warning: %s" % type(exc).__name__, flush=True)
+
+
+class PersistentStateDict(dict):
+    """Persist top-level job mutations without changing existing job-processing code."""
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        persist_state(force=isinstance(value, dict) and value.get("status") in ("queued", "done", "partial", "failed"))
+
+    def pop(self, key, *args):
+        result = super().pop(key, *args)
+        persist_state(force=True)
+        return result
+
+
+JOBS = PersistentStateDict()
+JOB_CREATED_AT = PersistentStateDict()
+
+
+def restore_state():
+    """Restore history after a restart and preserve already-created clip files."""
+    try:
+        saved = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        if not isinstance(saved, dict) or saved.get("version") != 1:
+            return
+        for job_id, job in (saved.get("jobs") or {}).items():
+            if not re.fullmatch(r"[a-f0-9]{32}", str(job_id)) or not isinstance(job, dict):
+                continue
+            folder = BASE / job_id
+            if not folder.is_dir():
+                continue
+            status = job.get("status")
+            if status in ("queued", "processing"):
+                clips = [clip for clip in (job.get("clips") or [])
+                         if isinstance(clip, dict) and (folder / Path(str(clip.get("url", "")).split("/")[-1])).is_file()]
+                job = dict(job)
+                job.update({
+                    "status": "partial" if clips else "failed",
+                    "message": ("El servidor se reinició. Se conservaron los clips terminados." if clips
+                                else "El servidor se reinició antes de terminar. Inicia una nueva generación."),
+                    "error": "generation_interrupted",
+                    "clips": clips,
+                    "progress_percent": 100 if clips else 0,
+                })
+            JOBS[ job_id ] = job
+        for job_id, created_at in (saved.get("created_at") or {}).items():
+            if re.fullmatch(r"[a-f0-9]{32}", str(job_id)):
+                JOB_CREATED_AT[job_id] = float(created_at)
+        persist_state(force=True)
+    except (OSError, ValueError, TypeError) as exc:
+        print("CLIPS.ONTHE state restore warning: %s" % type(exc).__name__, flush=True)
+
+
+restore_state()
 
 HTML = """<!doctype html>
 <html lang="es"><head>
@@ -553,6 +632,9 @@ def cleanup_worker():
 
 @app.on_event("startup")
 def start_cleanup_worker():
+    # Recovery preserves completed clips when a deployment/restart interrupts a job.
+    # True automatic continuation needs the durable worker/queue configured separately.
+    persist_state(force=True)
     threading.Thread(target=cleanup_worker, name="clip-history-cleanup", daemon=True).start()
 
 
@@ -1418,7 +1500,12 @@ def home_head():
 
 @app.get("/healthz")
 def health():
-    return {"status": "ok", "service": "CLIPS.ONTHE"}
+    return {
+        "status": "ok",
+        "service": "CLIPS.ONTHE",
+        "storage": "persistent" if DATA_DIR_CONFIGURED else "temporary",
+        "history_retention_hours": JOB_TTL_SECONDS // 3600,
+    }
 
 @app.post("/api/clips")
 def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count: int = Form(5), mode: str = Form("balanced"), follow_face: bool = Form(True)):
