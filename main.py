@@ -661,6 +661,17 @@ main{width:min(1280px,calc(100% - 266px));margin:0 28px 0 238px}
 @media(max-width:680px){.dashboard-heading{gap:18px;margin:5px 0 20px;padding-bottom:20px}.dashboard-heading h1{font-size:39px;letter-spacing:-1.8px}.dashboard-heading .tag{font-size:13px}.dashboard-summary{grid-template-columns:1fr 1fr}.dashboard-summary>div{min-height:90px;padding:12px}.workspace{grid-template-columns:1fr}.panel{padding:18px 15px}.panel-heading h2{font-size:21px}#form>.form-grid{grid-template-columns:1fr}.side-panel{padding:18px 16px}}
 
 #history-shortcut{width:auto;min-height:0;margin:12px 0 0;padding:0;border:0;background:transparent;box-shadow:none;color:#b7a5ff;font-size:10px;font-weight:850;letter-spacing:0;text-align:left}#history-shortcut:hover{transform:none;filter:none;color:#d2c7ff}
+
+/* CENTRO DE PROCESAMIENTO + EDITOR DE REVISIÓN DE CLIPS */
+.processing-console{padding:20px;margin:0 0 28px;border:1px solid #394153;border-radius:17px;background:linear-gradient(145deg,#171e2b,#10151f);box-shadow:0 16px 40px #0003}
+.processing-console-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.processing-console-head h3{margin:5px 0 4px;font-size:21px;color:#f1f4fa}.processing-console-head p{margin:0;color:#9ca7b9;font-size:11px;line-height:1.5}
+.processing-state{flex:0 0 auto;padding:7px 10px;border-radius:8px;border:1px solid #65502d;background:#292317;color:#f0d18b;font-size:8px;font-weight:950;letter-spacing:1px}.processing-state.is-done{border-color:#376b55;background:#14251e;color:#a5ebc5}
+.processing-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:18px 0 4px}.processing-metrics>div{display:flex;flex-direction:column;gap:5px;padding:11px 13px;border:1px solid #30394a;border-radius:10px;background:#0e131c}.processing-metrics b{font-size:22px;color:#f4f6fb;font-variant-numeric:tabular-nums}.processing-metrics b small{font-size:12px;color:#8f9aab}.processing-metrics span{font-size:8px;font-weight:900;letter-spacing:1px;color:#8f9aab}
+.processing-console .progress-track{margin:14px 0 12px}.processing-console .progress-track span{background:linear-gradient(90deg,#a3e635,#45d6c2)}
+.processing-stages{display:flex;justify-content:space-between;gap:8px}.processing-stages span{display:flex;align-items:center;gap:7px;color:#727e91;font-size:9px;font-weight:750}.processing-stages i{display:grid;place-items:center;width:21px;height:21px;border:1px solid #394153;border-radius:50%;font-style:normal;font-size:8px}.processing-stages .stage-done{color:#b6d88b}.processing-stages .stage-done i{border-color:#647b45;background:#25311d;color:#c9f28a}
+.clip-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.clip-actions .download{margin:0;min-height:43px;padding:10px;justify-content:center}.open-editor{margin:0;min-height:43px;padding:10px;border:1px solid #47516a;border-radius:10px;background:#20283a;color:#e8eafa;font-size:11px;font-weight:850;box-shadow:none;letter-spacing:0}.open-editor:hover{border-color:#a3e635;color:#d8f5a4}
+.clip-editor-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:#05070bdc;backdrop-filter:blur(12px)}.clip-editor-overlay[hidden]{display:none}.clip-editor-shell{width:min(100%,980px);max-height:92vh;overflow:auto;border:1px solid #39445a;border-radius:19px;background:#101620;box-shadow:0 28px 90px #000b}.clip-editor-head{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px 21px;border-bottom:1px solid #2b3546}.clip-editor-head h2{margin:4px 0 0;font-size:20px;color:#f2f4fa}.editor-close{width:38px;height:38px;margin:0;padding:0;border:1px solid #3b4659;border-radius:10px;background:#1b2432;color:#dfe5ef;box-shadow:none}.clip-editor-body{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:20px;padding:20px}.clip-editor-stage{display:grid;place-items:center;min-height:300px;padding:15px;border:1px solid #293448;border-radius:13px;background:radial-gradient(ellipse,#202a3b,#080c13 75%)}.clip-editor-stage video{display:block;width:auto;max-width:100%;height:min(65vh,650px);aspect-ratio:9/16;object-fit:contain;background:#000;border-radius:9px}.clip-editor-controls{display:flex;flex-direction:column;gap:12px}.clip-editor-controls label,.editor-timeline b{font-size:10px;font-weight:900;letter-spacing:.7px;color:#c9d0df}.clip-editor-controls select{width:100%;min-height:43px;padding:10px;border:1px solid #3b4659;border-radius:9px;background:#171f2c;color:#f1f4fa}.editor-timeline{margin-top:8px;padding:14px;border:1px solid #303a4c;border-radius:11px;background:#0c121b}.editor-timeline>div{display:flex;justify-content:space-between;gap:8px;align-items:center}.editor-timeline span{font-size:9px;color:#a8b3c5;font-variant-numeric:tabular-nums}.editor-timeline input{width:100%;margin:18px 0 4px;padding:0;accent-color:#a3e635}.editor-timeline p{font-size:10px;line-height:1.5;color:#8692a6;margin:7px 0 0}.clip-editor-controls .download{margin-top:auto;justify-content:center;min-height:46px}
+@media(max-width:680px){.processing-console{padding:15px}.processing-console-head h3{font-size:18px}.processing-metrics{gap:6px}.processing-metrics>div{padding:9px}.processing-metrics b{font-size:19px}.processing-stages span{font-size:8px;gap:4px}.clip-actions{grid-template-columns:1fr}.clip-editor-overlay{padding:8px}.clip-editor-shell{max-height:96vh}.clip-editor-body{grid-template-columns:1fr;padding:12px;gap:12px}.clip-editor-stage{min-height:220px;padding:9px}.clip-editor-stage video{height:min(54vh,510px)}.clip-editor-controls .download{margin-top:5px}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio"><span class="rail-symbol">⌂</span><span class="rail-label">Inicio</span></a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips"><span class="rail-symbol">✦</span><span class="rail-label">Crear clips</span></a><a class="rail-link" href="#result" data-nav="results" aria-label="Mis clips" title="Mis clips"><span class="rail-symbol">▣</span><span class="rail-label">Mis clips</span></a><a class="rail-link" href="#history-view" data-nav="history" aria-label="Historial" title="Historial"><span class="rail-symbol">◷</span><span class="rail-label">Historial</span></a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="dashboard-heading"><div><p class="eyebrow">ESPACIO DE TRABAJO / INICIO</p><h1>Tu próximo clip<br><span>empieza aquí.</span></h1><p class="tag">Convierte tus directos en clips verticales. Configura el proyecto y deja que CLIPS.ONTHE haga el trabajo.</p></div><div class="dashboard-summary"><div><small>FORMATO DE SALIDA</small><b>9:16</b><span>Vertical · 720 × 1280</span></div><div><small>PLATAFORMAS</small><b>TikTok · Reels</b><span>YouTube Shorts</span></div></div></section>
@@ -678,6 +689,36 @@ clipsView.id="clips-view";
 clipsView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">TU BIBLIOTECA PERSONAL</p><h1>Mis clips</h1><p>Solo tus clips generados, sin el resto del panel de creación.</p></div><button type="button" id="clips-back">← Volver a crear clips</button></div>';
 document.querySelector("main").appendChild(clipsView);
 clipsView.appendChild(result);
+const editor=document.createElement("section");
+editor.className="clip-editor-overlay";
+editor.id="clip-editor";
+editor.hidden=true;
+editor.innerHTML='<div class="clip-editor-shell" role="dialog" aria-modal="true" aria-labelledby="editor-title"><header class="clip-editor-head"><div><span class="results-kicker">EDITOR DE REVISIÓN</span><h2 id="editor-title">Vista previa del clip</h2></div><button type="button" class="editor-close" aria-label="Cerrar editor">✕</button></header><div class="clip-editor-body"><div class="clip-editor-stage"><video id="editor-video" controls playsinline preload="metadata"></video></div><aside class="clip-editor-controls"><label for="editor-speed">Velocidad de reproducción</label><select id="editor-speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× Normal</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select><div class="editor-timeline"><div><b>LÍNEA DE TIEMPO</b><span id="editor-time">00:00 / 00:00</span></div><input id="editor-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Buscar posición del clip"><p>Arrastra el control para revisar cualquier momento del vídeo.</p></div><a id="editor-download" class="download" href="#" download>↓ Descargar este clip</a></aside></div></div>';
+clipsView.appendChild(editor);
+const editorVideo=editor.querySelector("#editor-video");
+const editorSeek=editor.querySelector("#editor-seek");
+const editorTime=editor.querySelector("#editor-time");
+const editorFormatTime=value=>{const n=Math.max(0,Math.floor(Number(value)||0));return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0")};
+function closeEditor(){editor.hidden=true;editorVideo.pause();editorVideo.removeAttribute("src");editorVideo.load();}
+editor.querySelector(".editor-close").addEventListener("click",closeEditor);
+editor.addEventListener("click",event=>{if(event.target===editor)closeEditor();});
+editor.querySelector("#editor-speed").addEventListener("change",event=>{editorVideo.playbackRate=Number(event.target.value)||1;});
+editorSeek.addEventListener("input",()=>{if(Number.isFinite(editorVideo.duration)&&editorVideo.duration>0)editorVideo.currentTime=(Number(editorSeek.value)/1000)*editorVideo.duration;});
+editorVideo.addEventListener("loadedmetadata",()=>{editorSeek.value="0";editorTime.textContent=editorFormatTime(0)+" / "+editorFormatTime(editorVideo.duration);});
+editorVideo.addEventListener("timeupdate",()=>{if(Number.isFinite(editorVideo.duration)&&editorVideo.duration>0){editorSeek.value=String(Math.round(editorVideo.currentTime/editorVideo.duration*1000));editorTime.textContent=editorFormatTime(editorVideo.currentTime)+" / "+editorFormatTime(editorVideo.duration);}});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!editor.hidden)closeEditor();});
+result.addEventListener("click",event=>{
+ const button=event.target.closest(".open-editor");
+ if(!button)return;
+ const src=clipUrl(button.dataset.editorSrc);
+ if(src==="#")return;
+ editor.querySelector("#editor-title").textContent=button.dataset.editorName||"Vista previa del clip";
+ editorVideo.src=src;editorVideo.playbackRate=1;editor.querySelector("#editor-speed").value="1";
+ editor.querySelector("#editor-download").href=src;
+ editor.querySelector("#editor-download").download=(button.dataset.editorName||"CLIPS-ONTHE").replace(/[^a-z0-9_-]+/gi,"_")+".mp4";
+ editor.hidden=false;editorVideo.load();
+});
+
 document.querySelector("#clips-back").addEventListener("click",()=>{
  document.body.classList.remove("clips-view-mode","history-view-mode");
  document.querySelectorAll(".rail-link[data-nav]").forEach(link=>link.classList.toggle("active",link.dataset.nav==="create"));
@@ -694,15 +735,25 @@ async function readJson(response){const raw=await response.text();if(!raw.trim()
 let renderedClipCount=0;
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clipUrl=value=>/^\/download\/[a-f0-9]{32}\/clip_\d{2}\.mp4$/.test(String(value||""))?String(value):"#";
+function processingConsole(state,clips,targetCount,pct,done){
+ const status=state.status||"processing";
+ const title=done?(status==="partial"?"Trabajo parcial":"Proyecto completado"):(status==="queued"?"En cola":"Procesamiento activo");
+ const detail=done?(status==="partial"?"Se guardaron los clips que pudieron completarse.":"Todos los clips solicitados están listos."):(state.message||"El motor está preparando tus clips.");
+ const step=status==="queued"?0:(pct<18?1:(pct<75?2:3));
+ return "<section class='processing-console'><div class='processing-console-head'><div><span class='results-kicker'>CENTRO DE PROCESAMIENTO</span><h3>"+title+"</h3><p>"+escapeHtml(detail)+"</p></div><span class='processing-state "+(done?"is-done":"is-active")+"'>"+(done?"FINALIZADO":status==="queued"?"EN COLA":"EN VIVO")+"</span></div><div class='processing-metrics'><div><b>"+clips.length+" <small>/ "+targetCount+"</small></b><span>CLIPS LISTOS</span></div><div><b>"+Math.max(0,targetCount-clips.length)+"</b><span>PENDIENTES</span></div><div><b>"+pct+"%</b><span>PROGRESO</span></div></div><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='processing-stages'><span class='"+(step>=1?"stage-done":"")+"'><i>01</i> Análisis</span><span class='"+(step>=2?"stage-done":"")+"'><i>02</i> Selección</span><span class='"+(step>=3?"stage-done":"")+"'><i>03</i> Renderizado</span></div></section>";
+}
 function renderClips(state,done=false){
  const clips=state.clips||[];
  const finalMessage=state.status==="partial"?(state.message||"Se generaron clips parciales."):"¡Listo! Todos tus clips están preparados.";
  const targetCount=done?Math.max(1,clips.length):Math.max(1,Number(form.count.value));
  const pct=done?100:Math.max(0,Math.min(99,Number(state.progress_percent??Math.round(clips.length/targetCount*100))));
+ const consoleHtml=processingConsole(state,clips,targetCount,pct,done);
  if(clips.length===renderedClipCount){
   const status=result.querySelector(".progress-message");
   const bar=result.querySelector(".progress-track span");
   const count=result.querySelector(".results-count");
+  const oldConsole=result.querySelector(".processing-console");
+  if(oldConsole)oldConsole.outerHTML=consoleHtml;
   if(status)status.textContent=done?finalMessage:(state.message||"Procesando…");
   if(bar)bar.style.width=pct+"%";
   if(count)count.textContent=clips.length+" / "+targetCount;
@@ -711,13 +762,14 @@ function renderClips(state,done=false){
  const cards=clips.map((clip,index)=>{
   const url=clipUrl(clip.url),start=Number(clip.start_time||0),end=Number(clip.end_time||0);
   const time=start||end?'<span class="clip-time">'+Math.floor(start/60).toString().padStart(2,"0")+':'+Math.floor(start%60).toString().padStart(2,"0")+' – '+Math.floor(end/60).toString().padStart(2,"0")+':'+Math.floor(end%60).toString().padStart(2,"0")+'</span>':"";
-  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+(clip.gemini_score?"<span class='clip-ai'>Gemini "+escapeHtml(clip.gemini_score)+"/100</span>":"")+(clip.gemini_reason?"<span class='clip-ai-note'>"+escapeHtml(clip.gemini_reason)+"</span>":"")+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
+  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+(clip.gemini_score?"<span class='clip-ai'>Gemini "+escapeHtml(clip.gemini_score)+"/100</span>":"")+(clip.gemini_reason?"<span class='clip-ai-note'>"+escapeHtml(clip.gemini_reason)+"</span>":"")+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><div class='clip-actions'><button type='button' class='open-editor' data-editor-src='"+url+"' data-editor-name='"+escapeHtml(clip.name||("Clip "+(index+1)))+"' data-editor-duration='"+escapeHtml(clip.duration||30)+"'>▣ Abrir editor</button><a class='download' href='"+url+"' download><span>↓</span> Descargar <small>MP4 · 9:16</small></a></div></article>";
  }).join("");
  renderedClipCount=clips.length;
  const jobId=String(state.job_id||"");
  const zipLink=/^[a-f0-9]{32}$/.test(jobId)&&clips.length?'<a class="download-all" href="/download/'+jobId+'/all.zip">↓ Descargar todos los clips · ZIP</a>':"";
- result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div>"+zipLink+"<div class='clips-grid'>"+cards+"</div>";
+ result.innerHTML=consoleHtml+"<section class='results-heading'><div><span class='results-kicker'>TU BIBLIOTECA DE ESTE PROYECTO</span><h3>Clips generados</h3><p class='ok'>Abre un clip para revisarlo en el editor o descárgalo.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section>"+zipLink+"<div class='clips-grid'>"+cards+"</div>";
 }
+
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;renderedClipCount=0;result.innerHTML="<p class='progress-message'>Conectando con el motor de clips…</p><div class='progress-track'><span style='width:2%'></span></div>";
  try{
