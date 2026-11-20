@@ -700,16 +700,19 @@ def detect_visible_crop(source_path):
 
 
 def full_frame_vertical_filter(content_crop=None):
-    """Fill 9:16 with a dimmed backdrop while keeping the complete visible scene."""
+    """Fill 9:16 with a soft, non-distracting backdrop and preserve the full scene."""
     crop = ""
     if content_crop:
         width, height, x, y = content_crop
         crop = "crop=%d:%d:%d:%d," % (width, height, x, y)
     return (
         "split=2[bgsrc][fgsrc];"
+        # Build the backdrop at low resolution before blurring to keep CPU use low.
+        # This avoids the visible enlarged top/bottom strips from the source image.
         "[bgsrc]" + crop +
-        "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,"
-        "eq=brightness=-0.32:saturation=0.72[bg];"
+        "scale=90:160:force_original_aspect_ratio=increase,crop=90:160,"
+        "gblur=sigma=18,eq=brightness=-0.28:saturation=0.45,"
+        "scale=720:1280[bg];"
         "[fgsrc]" + crop +
         "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
         "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
