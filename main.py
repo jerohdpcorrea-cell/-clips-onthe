@@ -1019,9 +1019,9 @@ def review_clip_with_gemini(video_path, duration):
     if not api_key:
         return None
 
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", model):
-        model = "gemini-2.5-flash"
+        model = "gemini-3.5-flash-lite"
 
     frames = []
     try:
