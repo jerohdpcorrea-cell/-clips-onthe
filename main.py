@@ -852,6 +852,10 @@ historyView.querySelector("#history-list").addEventListener("click",async event=
  }
 });
 async function loadHistory(){
+ // No reconstruir las tarjetas mientras un vídeo está reproduciéndose:
+ // reemplazar el HTML destruye el elemento <video> y corta la reproducción.
+ const activeVideo=historyView.querySelector("#history-list video:not([data-ignore])");
+ if(activeVideo && !activeVideo.paused && !activeVideo.ended)return;
  const list=historyView.querySelector("#history-list");
  try{
   const response=await fetch("/api/jobs",{cache:"no-store"});
@@ -891,7 +895,11 @@ navLinks.forEach(link=>link.addEventListener("click",event=>{
  if(action==="history"){document.body.classList.remove("clips-view-mode");document.body.classList.add("history-view-mode");loadHistory();return;}
 }));
 window.addEventListener("focus",()=>{if(document.body.classList.contains("history-view-mode"))loadHistory();});
-setInterval(()=>{if(document.body.classList.contains("history-view-mode"))loadHistory();},5000);
+setInterval(()=>{
+ if(!document.body.classList.contains("history-view-mode"))return;
+ const playing=[...historyView.querySelectorAll("#history-list video")].some(video=>!video.paused&&!video.ended);
+ if(!playing)loadHistory();
+},5000);
 loadHistory();</script></body></html>"""
 
 def cleanup_old_jobs():
