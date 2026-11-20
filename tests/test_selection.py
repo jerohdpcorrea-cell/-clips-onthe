@@ -49,6 +49,19 @@ class SelectionTests(unittest.TestCase):
         self.assertIn(".clips-grid", main.HTML)
         self.assertIn('data-nav="history"', main.HTML)
 
+    def test_job_state_is_saved_and_restored_from_configured_data_directory(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            state_file = Path(directory) / "jobs-state.json"
+            payload = {"version": 1, "jobs": {"a" * 32: {"status": "done", "clips": []}},
+                       "created_at": {"a" * 32: 123.0}}
+            state_file.write_text(json.dumps(payload), encoding="utf-8")
+            self.assertEqual(json.loads(state_file.read_text(encoding="utf-8"))["version"], 1)
+            self.assertTrue(state_file.is_file())
+
     def test_gemini_review_is_optional_without_an_api_key(self):
         from unittest.mock import patch
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}, clear=False):
