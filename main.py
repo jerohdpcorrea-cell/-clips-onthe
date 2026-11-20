@@ -667,6 +667,55 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
         except OSError:
             pass
 
+def detect_visible_crop(source_path):
+    """Detect embedded black bars so portrait-wrapped landscape footage can fill 9:16."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-ss", "0.5", "-i", str(source_path),
+             "-t", "2.5", "-vf", "cropdetect=limit=24:round=2:reset=0",
+             "-an", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=12
+        )
+        matches = re.findall(r"crop=(\\d+):(\\d+):(\\d+):(\\d+)", result.stderr or "")
+        if not matches:
+            return None
+        values = [int(round(statistics.median([int(item[i]) for item in matches]))) for i in range(4)]
+        width, height, x, y = values
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", str(source_path)],
+            capture_output=True, text=True, timeout=8
+        )
+        source_width, source_height = [int(v) for v in probe.stdout.strip().split("x", 1)]
+        if width < source_width * 0.55 or height < source_height * 0.18:
+            return None
+        if width >= source_width * 0.97 and height >= source_height * 0.97:
+            return None
+        if x < 0 or y < 0 or x + width > source_width or y + height > source_height:
+            return None
+        return width, height, x, y
+    except Exception as crop_exc:
+        print("CLIPS.ONTHE content crop detection unavailable: %s" % crop_exc, flush=True)
+        return None
+
+
+def full_frame_vertical_filter(content_crop=None):
+    """Fill 9:16 with a dimmed backdrop while keeping the complete visible scene."""
+    crop = ""
+    if content_crop:
+        width, height, x, y = content_crop
+        crop = "crop=%d:%d:%d:%d," % (width, height, x, y)
+    return (
+        "split=2[bgsrc][fgsrc];"
+        "[bgsrc]" + crop +
+        "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,"
+        "eq=brightness=-0.32:saturation=0.72[bg];"
+        "[fgsrc]" + crop +
+        "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
+        "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
+    )
+
+
 def build_face_crop_filter(source_path):
     """Track a lone face; keep the full scene whenever a group is present."""
     try:
@@ -1005,11 +1054,13 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             filename = "clip_%02d.mp4" % i
             output = folder / filename
             face_crop_filter = build_face_crop_filter(source) if follow_face else ""
+            content_crop = detect_visible_crop(source)
+            full_frame_filter = full_frame_vertical_filter(content_crop)
             # Convertir a vertical conservando la imagen completa; sin procesamiento de texto.
             if face_crop_filter:
                 video_filter = face_crop_filter + "scale=720:1280,setsar=1"
             else:
-                video_filter = "split=2[bgsrc][fgsrc];[bgsrc]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,eq=brightness=-0.32:saturation=0.72[bg];[fgsrc]scale=720:1280:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
+                video_filter = full_frame_filter
             video_filter += "[v]"
             ffmpeg_command = [
                 "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -1027,7 +1078,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 if not face_crop_filter:
                     raise
                 print("CLIPS.ONTHE face reframe failed for %s clip %d; retrying full frame" % (job_id, i), flush=True)
-                video_filter = "split=2[bgsrc][fgsrc];[bgsrc]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,eq=brightness=-0.32:saturation=0.72[bg];[fgsrc]scale=720:1280:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]"
+                video_filter = full_frame_filter + "[v]"
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
