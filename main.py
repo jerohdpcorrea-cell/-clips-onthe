@@ -607,6 +607,69 @@ def select_diverse_candidates(candidates, count, duration, exclude_ranges=None):
     return sorted(selected, key=lambda item: item[0])
 
 
+def build_fallback_ranges(duration, count, source_key, exclude_ranges=None):
+    """Create distributed fallback moments with varied 20–60 second lengths."""
+    exclude_ranges = exclude_ranges or []
+    duration = float(duration)
+    if duration < MIN_CLIP_SECONDS or count < 1:
+        return []
+
+    seed = int(hashlib.sha256(str(source_key).encode()).hexdigest()[:8], 16)
+    lengths = [20, 30, 45, 60]
+    rotation = seed % len(lengths)
+    lengths = lengths[rotation:] + lengths[:rotation]
+    selected = []
+
+    def is_clear(start, end, gap):
+        if any(not (end + gap <= item["start_time"] or start >= item["end_time"] + gap)
+               for item in selected):
+            return False
+        return not any(
+            not (end + gap <= float(item[0]) or start >= float(item[1]) + gap)
+            for item in exclude_ranges
+        )
+
+    for index in range(count):
+        preferred = lengths[index % len(lengths)]
+        ordered_lengths = [preferred] + [n for n in lengths if n != preferred]
+        target = duration * (index + 0.5) / count
+        chosen = None
+
+        for gap in (10, 0):
+            for length in ordered_lengths:
+                length = min(length, int(duration))
+                if length < MIN_CLIP_SECONDS:
+                    continue
+                last_start = max(0, int(duration - length))
+                step = max(5, length // 3)
+                positions = list(range(0, last_start + 1, step))
+                if not positions or positions[-1] != last_start:
+                    positions.append(last_start)
+                ideal_start = min(last_start, max(0, int(target - length / 2)))
+                positions.sort(key=lambda start: (abs(start - ideal_start), (start + seed) % max(1, step)))
+                for start in positions:
+                    end = start + length
+                    if is_clear(float(start), float(end), gap):
+                        chosen = (float(start), float(end), length)
+                        break
+                if chosen:
+                    break
+            if chosen:
+                break
+
+        if not chosen:
+            break
+        start, end, length = chosen
+        selected.append({
+            "start_time": start,
+            "end_time": end,
+            "title": "Momento alternativo (%ds)" % length,
+            "score": None
+        })
+
+    return sorted(selected, key=lambda item: item["start_time"])
+
+
 def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclude_ranges=None):
     exclude_ranges = exclude_ranges or []
     """Rank moments using lightweight energy, activity and short audio-burst cues."""
@@ -1002,30 +1065,9 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                     "message": "Análisis de audio omitido o no disponible. Seleccionando momentos repartidos por el vídeo…",
                     "clips": [], "progress_percent": 12
                 }
-            segment_span = duration / max(1, total)
-            fallback_length = min(30, max(MIN_CLIP_SECONDS, int(segment_span)))
-            ranges = []
-            # Probar posiciones distribuidas y saltar los intervalos entregados
-            # en solicitudes anteriores del mismo vídeo.
-            step = max(5.0, fallback_length / 2)
-            positions = list(range(0, max(1, int(duration - fallback_length) + 1), int(step)))
-            if positions:
-                offset = int(hashlib.sha256((source_key + str(len(seen_ranges))).encode()).hexdigest()[:8], 16) % len(positions)
-                positions = positions[offset:] + positions[:offset]
-            for start_time in positions:
-                end_time = start_time + fallback_length
-                if any(not (end_time + 10 <= float(a) or start_time >= float(b) + 10) for a, b in seen_ranges):
-                    continue
-                if any(not (end_time + 10 <= item["start_time"] or start_time >= item["end_time"] + 10) for item in ranges):
-                    continue
-                ranges.append({
-                    "start_time": float(start_time),
-                    "end_time": float(end_time),
-                    "title": "Momento nuevo del vídeo (%ds)" % fallback_length,
-                    "score": None
-                })
-                if len(ranges) >= total:
-                    break
+            # Incluso si el análisis de audio no está disponible, variar las
+            # duraciones y repartir los momentos por todo el vídeo.
+            ranges = build_fallback_ranges(duration, total, source_key, seen_ranges)
             if len(ranges) < total:
                 raise RuntimeError("Ya se han utilizado casi todos los momentos disponibles de este vídeo. Prueba con menos clips o espera 48 horas para volver a utilizar esos momentos.")
         finally:
