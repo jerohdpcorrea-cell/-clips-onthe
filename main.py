@@ -12,6 +12,9 @@ import statistics
 import json
 import sys
 import hashlib
+import base64
+import urllib.request
+import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -328,6 +331,7 @@ footer{color:#737b91}
 .clip-card .download>span{font-size:18px;line-height:1}
 .clip-card .download small{margin-left:auto;color:#aeb9a0;font-size:8px;letter-spacing:1px}
 @media(max-width:680px){.clips-grid{grid-template-columns:1fr;gap:13px}.clip-card{padding:13px}.clip-card .clip-preview video{height:min(105vw,420px)}.results-heading h3{font-size:21px}}
+.clip-ai{display:inline-flex;align-items:center;border:1px solid #6657a0;background:#211d38;color:#d8ccff;border-radius:7px;padding:5px 8px;font-size:10px;font-weight:850}.clip-ai-note{display:block;flex-basis:100%;color:#b8b2ce;font-size:10px;line-height:1.5;margin-top:3px}
 .tracking-toggle{display:flex!important;align-items:flex-start;gap:11px;margin:17px 0 5px!important;padding:14px;border:1px solid #3b4050;border-radius:12px;background:#111722;cursor:pointer}.tracking-toggle input{width:17px;height:17px;flex:0 0 17px;margin:1px 0 0;accent-color:var(--acid)}.tracking-toggle b{display:block;color:#f0f2f8;font-size:11px;letter-spacing:.4px;text-transform:none}.tracking-toggle small{display:block;margin-top:5px;color:#969eb0;font-size:10px;line-height:1.55;font-weight:500}.clip-time{color:#929bb0;font-size:10px;font-variant-numeric:tabular-nums}
 
 /* QUALITY PASS — interfaz consistente, accesible y adaptable */
@@ -414,7 +418,7 @@ function renderClips(state,done=false){
  const cards=clips.map((clip,index)=>{
   const url=clipUrl(clip.url),start=Number(clip.start_time||0),end=Number(clip.end_time||0);
   const time=start||end?'<span class="clip-time">'+Math.floor(start/60).toString().padStart(2,"0")+':'+Math.floor(start%60).toString().padStart(2,"0")+' – '+Math.floor(end/60).toString().padStart(2,"0")+':'+Math.floor(end%60).toString().padStart(2,"0")+'</span>':"";
-  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
+  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+(clip.gemini_score?"<span class='clip-ai'>Gemini "+escapeHtml(clip.gemini_score)+"/100</span>":"")+(clip.gemini_reason?"<span class='clip-ai-note'>"+escapeHtml(clip.gemini_reason)+"</span>":"")+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
  }).join("");
  renderedClipCount=clips.length;
  result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
@@ -475,7 +479,7 @@ form.addEventListener("submit",async e=>{
    list.innerHTML=jobs.map(job=>{
     const created=new Date(job.created_at*1000).toLocaleString("es");
     const expires=new Date(job.expires_at*1000).toLocaleString("es");
-    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span>'+(clip.score?'<span class="clip-score">Actividad '+esc(clip.score)+'/100</span>':"")+'</div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
+    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span>'+(clip.score?'<span class="clip-score">Actividad '+esc(clip.score)+'/100</span>':"")+(clip.gemini_score?'<span class="clip-ai">Gemini '+esc(clip.gemini_score)+'/100</span>':"")+(clip.gemini_reason?'<span class="clip-ai-note">'+esc(clip.gemini_reason)+'</span>':"")+'</div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
     return '<article class="history-job"><h3>Trabajo · '+esc(job.job_id.slice(0,8))+'</h3><span class="history-status">'+esc(labels[job.status]||job.status)+'</span><p>Enviado: '+esc(created)+'</p><p>Eliminación automática: '+esc(expires)+'</p><p>'+esc(job.message||"")+'</p>'+(clips?'<div class="history-clips">'+clips+'</div>':"")+'</article>';
    }).join("");
   }catch(error){list.className="history-empty";list.textContent=error.message||"No se pudo cargar el historial.";}
@@ -1008,6 +1012,90 @@ def remember_seen_range(source_key, start, end):
         temp.replace(path)
 
 
+
+def review_clip_with_gemini(video_path, duration):
+    """Optional, lightweight visual review. Never blocks clip delivery."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", model):
+        model = "gemini-2.5-flash"
+
+    frames = []
+    try:
+        for fraction in (0.25, 0.75):
+            timestamp = max(0.1, min(float(duration) * fraction, max(0.1, float(duration) - 0.1)))
+            frame = subprocess.run(
+                [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(timestamp),
+                    "-i", str(video_path), "-frames:v", "1", "-vf", "scale=512:-2",
+                    "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"
+                ],
+                capture_output=True, check=True, timeout=8
+            ).stdout
+            if not frame or len(frame) > 600 * 1024:
+                return None
+            frames.append(frame)
+
+        parts = [{
+            "text": (
+                "Evalúa el potencial VISUAL de este clip corto para redes sociales. "
+                "Observa si la acción es clara, si las personas importantes quedan visibles, "
+                "si hay reacción o emoción y si el encuadre vertical conserva el contexto. "
+                "No inventes lo que ocurre entre fotogramas. Devuelve SOLO JSON válido con "
+                "score (entero 1-100) y reason (máximo 18 palabras, español). "
+                "No evalúes ni generes texto en pantalla."
+            )
+        }]
+        for frame in frames:
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": base64.b64encode(frame).decode("ascii")
+                }
+            })
+        payload = json.dumps({
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 120,
+                "responseMimeType": "application/json"
+            }
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model,
+            data=payload,
+            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+            method="POST"
+        )
+        with urllib.request.urlopen(request, timeout=16) as response:
+            data = json.loads(response.read(256 * 1024).decode("utf-8"))
+        text_parts = [
+            part.get("text", "")
+            for candidate in data.get("candidates", [])
+            for part in (candidate.get("content") or {}).get("parts", [])
+            if part.get("text")
+        ]
+        parsed = json.loads("\n".join(text_parts))
+        score = max(1, min(100, int(parsed.get("score", 0))))
+        reason = re.sub(r"\s+", " ", str(parsed.get("reason", ""))).strip()[:180]
+        if not score or not reason:
+            return None
+        return {"score": score, "reason": reason}
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError,
+            urllib.error.URLError, urllib.error.HTTPError) as exc:
+        status = getattr(exc, "code", None)
+        print("CLIPS.ONTHE Gemini visual review skipped%s" % (
+            " (HTTP %s)" % status if status else ""
+        ), flush=True)
+        return None
+    except Exception as exc:
+        print("CLIPS.ONTHE Gemini visual review skipped: %s" % type(exc).__name__, flush=True)
+        return None
+
+
 def process_job(job_id, url, count, mode="balanced", follow_face=False):
     global ACTIVE_JOB
     folder = BASE / job_id
@@ -1246,14 +1334,27 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
-            clips.append({
+            clip_item = {
                 "name": clip_range.get("title") or ("Clip %d" % i),
                 "url": "/download/%s/%s" % (job_id, filename),
                 "score": clip_range.get("score"),
                 "duration": int(clip_range["end_time"] - clip_range["start_time"]),
                 "start_time": float(clip_range["start_time"]),
                 "end_time": float(clip_range["end_time"])
-            })
+            }
+            # Limit free-tier usage and added latency to two reviews per job.
+            if os.environ.get("GEMINI_API_KEY") and i <= 2:
+                with JOBS_LOCK:
+                    JOBS[job_id] = {
+                        "status": "processing",
+                        "message": "Revisión visual opcional de Gemini (%d/2)…" % i,
+                        "clips": list(clips), "progress_percent": 15 + int(80 * (i - 0.2) / total)
+                    }
+                review = review_clip_with_gemini(output, clip_item["duration"])
+                if review:
+                    clip_item["gemini_score"] = review["score"]
+                    clip_item["gemini_reason"] = review["reason"]
+            clips.append(clip_item)
             remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
             with JOBS_LOCK:
                 JOBS[job_id] = {
