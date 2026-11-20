@@ -12,6 +12,8 @@ import statistics
 import json
 import sys
 import hashlib
+import base64
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -414,7 +416,7 @@ function renderClips(state,done=false){
  const cards=clips.map((clip,index)=>{
   const url=clipUrl(clip.url),start=Number(clip.start_time||0),end=Number(clip.end_time||0);
   const time=start||end?'<span class="clip-time">'+Math.floor(start/60).toString().padStart(2,"0")+':'+Math.floor(start%60).toString().padStart(2,"0")+' – '+Math.floor(end/60).toString().padStart(2,"0")+':'+Math.floor(end%60).toString().padStart(2,"0")+'</span>':"";
-  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
+  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.ai_review?"<span class='clip-score' title='Revisión visual automática; no predice viralidad'>IA visual "+escapeHtml(clip.score)+"/100</span>":(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>"))+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
  }).join("");
  renderedClipCount=clips.length;
  result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
@@ -956,6 +958,77 @@ def build_face_crop_filter(source_path):
         return ""
 
 
+def review_clip_with_ai(clip_path, mode="balanced", clip_duration=30):
+    """Optionally review two low-resolution frames with an OpenAI-compatible vision model.
+
+    This is deliberately fail-open: missing configuration, API errors or invalid
+    model output never prevent clip generation.
+    """
+    api_key = os.getenv("CLIPS_AI_API_KEY", "").strip()
+    if not api_key:
+        return None
+    model = os.getenv("CLIPS_AI_MODEL", "gpt-4o-mini").strip()
+    base_url = os.getenv("CLIPS_AI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/")
+    if not model or not base_url.startswith("https://"):
+        return None
+
+    images = []
+    for fraction in (0.25, 0.75):
+        timestamp = max(0.2, min(float(clip_duration) - 0.2, float(clip_duration) * fraction))
+        frame = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(timestamp),
+             "-i", str(clip_path), "-frames:v", "1", "-vf", "scale=512:-2",
+             "-q:v", "6", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"],
+            capture_output=True, check=True, timeout=8
+        ).stdout
+        if frame:
+            images.append({
+                "type": "image_url",
+                "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(frame).decode("ascii")}
+            })
+    if not images:
+        return None
+
+    prompt = (
+        "Evalúa visualmente este fragmento para una aplicación que selecciona clips de streams. "
+        "Modo: %s. Usa solo lo visible; no inventes lo que ocurre entre fotogramas. "
+        "Devuelve únicamente JSON con title (título breve en español, máximo 55 caracteres), "
+        "score (entero 0-100 sobre claridad visual y potencial del momento, no viralidad garantizada) "
+        "y reason (una frase breve en español). Si no hay contexto suficiente, usa un título neutral "
+        "y una puntuación conservadora." % mode
+    )
+    payload = {
+        "model": model,
+        "temperature": 0.1,
+        "max_tokens": 140,
+        "messages": [
+            {"role": "system", "content": "Eres un revisor visual prudente de clips. Responde solo JSON válido."},
+            {"role": "user", "content": [{"type": "text", "text": prompt}] + images}
+        ]
+    }
+    request = urllib.request.Request(
+        base_url + "/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+        method="POST"
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    content = result["choices"][0]["message"]["content"]
+    if isinstance(content, list):
+        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+    content = str(content).strip()
+    if content.startswith("```"):
+        content = re.sub(r"^\`\`\`(?:json)?\s*|\s*\`\`\`$", "", content, flags=re.I)
+    review = json.loads(content)
+    title = re.sub(r"\s+", " ", str(review.get("title") or "")).strip()[:55]
+    reason = re.sub(r"\s+", " ", str(review.get("reason") or "")).strip()[:140]
+    score = max(0, min(100, int(review.get("score", 50))))
+    if not title:
+        return None
+    return {"title": title, "score": score, "reason": reason}
+
+
 def safe_error(exc):
     msg = str(exc).lower()
     if "not a bot" in msg or "sign in to confirm" in msg:
@@ -1245,7 +1318,28 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"]), "start_time": float(clip_range["start_time"]), "end_time": float(clip_range["end_time"])})
+            ai_review = None
+            # Limitar las revisiones visuales para proteger el tiempo y el consumo
+            # del servidor gratuito. El generador nunca depende de esta API.
+            if i <= int(os.getenv("CLIPS_AI_MAX_REVIEWS", "5") or 5):
+                try:
+                    ai_review = review_clip_with_ai(
+                        output, mode, clip_range["end_time"] - clip_range["start_time"]
+                    )
+                except Exception as ai_exc:
+                    print("CLIPS.ONTHE optional AI review skipped for %s clip %d: %s" % (
+                        job_id, i, ai_exc
+                    ), flush=True)
+            clips.append({
+                "name": ai_review["title"] if ai_review else (clip_range.get("title") or ("Clip %d" % i)),
+                "url": "/download/%s/%s" % (job_id, filename),
+                "score": ai_review["score"] if ai_review else clip_range.get("score"),
+                "ai_review": bool(ai_review),
+                "ai_reason": ai_review.get("reason", "") if ai_review else "",
+                "duration": int(clip_range["end_time"] - clip_range["start_time"]),
+                "start_time": float(clip_range["start_time"]),
+                "end_time": float(clip_range["end_time"])
+            })
             remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
             with JOBS_LOCK:
                 JOBS[job_id] = {
