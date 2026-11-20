@@ -15,6 +15,7 @@ import hashlib
 import base64
 import urllib.request
 import urllib.error
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
@@ -471,6 +472,10 @@ body.history-view-mode #history-view{display:block}
 #history-view .clips-view-head{align-items:center}
 #history-refresh{width:auto;min-height:44px;margin:0;padding:0 16px;border:1px solid #4b4a3b;border-radius:11px;background:#1b1a15;color:#f3e6d3;font-weight:850;cursor:pointer}
 #history-refresh:hover{border-color:var(--acid,#d6ff45);color:var(--acid,#d6ff45)}
+.download-all{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 18px;padding:12px 17px;border:1px solid #d6ff45;border-radius:11px;background:linear-gradient(120deg,rgba(214,255,69,.14),rgba(214,255,69,.05));color:#eaff9a;font-weight:850;text-decoration:none;transition:transform .18s ease,border-color .18s ease}
+.download-all:hover{transform:translateY(-1px);border-color:#efffa8}
+.history-download-all{margin:0 0 14px}
+@media(max-width:680px){.download-all{width:100%;box-sizing:border-box}}
 .history-list{display:grid;gap:17px}
 .history-empty{padding:34px;border:1px dashed #41485d;border-radius:16px;color:#a5adbd;text-align:center;line-height:1.8}
 .history-empty small{color:#7f899e}
@@ -546,7 +551,9 @@ function renderClips(state,done=false){
   return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+(clip.gemini_score?"<span class='clip-ai'>Gemini "+escapeHtml(clip.gemini_score)+"/100</span>":"")+(clip.gemini_reason?"<span class='clip-ai-note'>"+escapeHtml(clip.gemini_reason)+"</span>":"")+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
  }).join("");
  renderedClipCount=clips.length;
- result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
+ const jobId=String(state.job_id||"");
+ const zipLink=/^[a-f0-9]{32}$/.test(jobId)&&clips.length?'<a class="download-all" href="/download/'+jobId+'/all.zip">↓ Descargar todos los clips · ZIP</a>':"";
+ result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div>"+zipLink+"<div class='clips-grid'>"+cards+"</div>";
 }
 form.addEventListener("submit",async e=>{
  e.preventDefault();btn.disabled=true;renderedClipCount=0;result.innerHTML="<p class='progress-message'>Conectando con el motor de clips…</p><div class='progress-track'><span style='width:2%'></span></div>";
@@ -593,7 +600,8 @@ async function loadHistory(){
    }).join("");
    const percent=Math.max(0,Math.min(100,Number(job.progress_percent||0)));
    const state=job.status||"processing";
-   return '<article class="history-job"><div class="history-job-head"><div><span class="history-kicker">PROYECTO · '+escapeHtml(job.job_id.slice(0,8).toUpperCase())+'</span><h2>'+escapeHtml(state==="processing"||state==="queued"?"Generación en curso":labels[state]||"Trabajo")+'</h2><p>'+escapeHtml(created)+'</p></div><span class="history-status '+escapeHtml(state)+'">'+escapeHtml(labels[state]||state)+'</span></div><div class="history-progress"><span style="width:'+percent+'%"></span></div><p class="history-message">'+escapeHtml(job.message||"")+'</p>'+(clips?'<div class="history-clips-grid">'+clips+'</div>':(state==="processing"||state==="queued"?'<p class="history-wait">Los clips aparecerán aquí en cuanto estén listos. Puedes salir y volver cuando quieras.</p>':""))+'</article>';
+   const zip=/^[a-f0-9]{32}$/.test(job.job_id)&&job.clips?.length?'<a class="download-all history-download-all" href="/download/'+job.job_id+'/all.zip">↓ Descargar todos · ZIP</a>':"";
+   return '<article class="history-job"><div class="history-job-head"><div><span class="history-kicker">PROYECTO · '+escapeHtml(job.job_id.slice(0,8).toUpperCase())+'</span><h2>'+escapeHtml(state==="processing"||state==="queued"?"Generación en curso":labels[state]||"Trabajo")+'</h2><p>'+escapeHtml(created)+'</p></div><span class="history-status '+escapeHtml(state)+'">'+escapeHtml(labels[state]||state)+'</span></div><div class="history-progress"><span style="width:'+percent+'%"></span></div><p class="history-message">'+escapeHtml(job.message||"")+'</p>'+zip+(clips?'<div class="history-clips-grid">'+clips+'</div>':(state==="processing"||state==="queued"?'<p class="history-wait">Los clips aparecerán aquí en cuanto estén listos. Puedes salir y volver cuando quieras.</p>':""))+'</article>';
   }).join("");
  }catch(error){list.innerHTML='<div class="history-empty">'+escapeHtml(error.message||"No se pudo cargar el historial.")+'</div>';}
 }
@@ -1578,6 +1586,46 @@ def job_status(job_id: str):
     if not job:
         raise HTTPException(404, "El trabajo expiró o el servidor se reinició. Inicia uno nuevo.")
     return job
+
+def create_job_archive(job_id):
+    """Build a ZIP containing only completed clips registered for this job."""
+    if not re.fullmatch(r"[a-f0-9]{32}", job_id):
+        raise HTTPException(404, "Trabajo no encontrado.")
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(404, "Trabajo no encontrado.")
+    clip_items = list(job.get("clips") or [])
+    if not clip_items:
+        raise HTTPException(404, "Este trabajo todavía no tiene clips descargables.")
+    folder = BASE / job_id
+    archive_path = folder / "clips-onthe.zip"
+    try:
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+            for index, clip in enumerate(clip_items, start=1):
+                filename = Path(str(clip.get("url", "")).split("/")[-1]).name
+                if not re.fullmatch(r"clip_[0-9]{2}\.mp4", filename):
+                    continue
+                clip_path = folder / filename
+                if clip_path.is_file() and clip_path.parent == folder:
+                    archive.write(clip_path, arcname="CLIPS-ONTHE_%02d.mp4" % index)
+        if not archive_path.is_file() or archive_path.stat().st_size == 0:
+            archive_path.unlink(missing_ok=True)
+            raise HTTPException(404, "No hay clips terminados para incluir en el ZIP.")
+    except HTTPException:
+        raise
+    except OSError as exc:
+        archive_path.unlink(missing_ok=True)
+        print("CLIPS.ONTHE archive error for %s: %s" % (job_id, type(exc).__name__), flush=True)
+        raise HTTPException(503, "No se pudo preparar el ZIP. Descarga los clips individualmente.")
+    return archive_path
+
+
+@app.get("/download/{job_id}/all.zip")
+def download_all(job_id: str):
+    cleanup_old_jobs()
+    archive_path = create_job_archive(job_id)
+    return FileResponse(archive_path, filename="CLIPS-ONTHE_%s.zip" % job_id[:8], media_type="application/zip")
+
 
 @app.get("/download/{job_id}/{filename}")
 def download(job_id: str, filename: str):
