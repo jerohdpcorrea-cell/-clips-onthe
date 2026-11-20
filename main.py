@@ -372,7 +372,7 @@ form.addEventListener("submit",async e=>{
  try{
   const res=await fetch("/api/clips",{method:"POST",body:new FormData(form)});
   const data=await readJson(res);if(!res.ok)throw new Error(data.detail||"No se pudo iniciar el trabajo.");
-  result.textContent="Trabajo iniciado. Preparando tus clips…";
+  result.innerHTML="<p class='progress-message'>Trabajo iniciado. Preparando tus clips…</p><div class='progress-track'><span style='width:2%'></span></div>";
   let finished=false;
   while(!finished){
    await new Promise(r=>setTimeout(r,3000));
@@ -389,8 +389,6 @@ form.addEventListener("submit",async e=>{
    if(state.status==="done"){
     finished=true;
     renderClips(state,true);
-   }else if(state.status!=="partial"&&renderedClipCount===0&&(!state.clips||state.clips.length===0)){
-    result.textContent=state.message||"Procesando vídeo…";
    }
   }
  }catch(err){result.innerHTML="<p class='error'>"+String(err.message).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p>";}
@@ -593,6 +591,11 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
                 burst_score = min(1.0, burst_count / max(1.0, length * 0.10))
 
                 silence_penalty = max(0.0, 0.35 - active)
+                # Dar prioridad a picos con contexto: unos segundos más tranquilos
+                # antes y después suelen conservar mejor el inicio y cierre de una reacción.
+                before = statistics.fmean(levels[max(0, start - 5):start]) if start > 0 else avg
+                after = statistics.fmean(levels[min(available, start + length):min(available, start + length + 5)]) if start + length < available else avg
+                context_score = min(1.0, (max(0.0, avg - before) + max(0.0, avg - after)) / (2.0 * reference))
                 length_bonus = 0.04 if length in (30, 45) else 0.0
                 score = (
                     weights[0] * energy_score
@@ -600,6 +603,7 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
                     + weights[2] * active
                     + weights[3] * variation_score
                     + weights[4] * burst_score
+                    + 0.06 * context_score
                     + length_bonus
                     - silence_penalty
                 )
@@ -930,12 +934,13 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                         active_item["mb"], speed_text
                     )
                 current = JOBS.get(job_id, {})
-                progress_percent = 15 + int(70 * (completed + active_item["percent"] / 100.0) / total)
+                download_fraction = (completed - 0.2) if active_item["done"] else (completed + 0.8 * active_item["percent"] / 100.0)
+                progress_percent = 15 + int(80 * max(0.0, download_fraction) / total)
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": message,
                     "clips": list(current.get("clips") or []),
-                    "progress_percent": min(88, progress_percent)
+                    "progress_percent": min(79, progress_percent)
                 }
 
         def clip_download_progress(index, data):
@@ -985,7 +990,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Descargando el fragmento %d/%d…" % (i, total),
-                    "clips": list(clips), "progress_percent": 15 + int(70 * (i - 1) / total)
+                    "clips": list(clips), "progress_percent": 15 + int(80 * (i - 1 + 0.8) / total)
                 }
 
             _, source = download_one(i, clip_range)
@@ -994,7 +999,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Creando clip vertical %d/%d…" % (i, total),
-                    "clips": list(clips), "progress_percent": 15 + int(70 * (i - 0.35) / total)
+                    "clips": list(clips), "progress_percent": 15 + int(80 * (i - 0.2) / total)
                 }
 
             filename = "clip_%02d.mp4" % i
