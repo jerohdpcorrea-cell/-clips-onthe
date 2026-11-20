@@ -121,6 +121,40 @@ class SelectionTests(unittest.TestCase):
                     self.assertEqual(archive.namelist(), ["CLIPS-ONTHE_01.mp4", "CLIPS-ONTHE_02.mp4"])
                     self.assertEqual(archive.read("CLIPS-ONTHE_01.mp4"), b"first")
 
+    def test_retry_creates_new_job_for_only_missing_clips(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from fastapi import BackgroundTasks
+        original_id = "d" * 32
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            folder = base / original_id
+            folder.mkdir()
+            (folder / "job-config.json").write_text(json.dumps({
+                "url": "https://kick.com/channel/videos/example",
+                "count": 5, "mode": "balanced", "follow_face": True
+            }), encoding="utf-8")
+            jobs = {original_id: {"status": "partial", "clips": [
+                {"url": "/download/%s/clip_01.mp4" % original_id},
+                {"url": "/download/%s/clip_02.mp4" % original_id},
+            ]}}
+            created = {}
+            with (
+                patch.object(main, "BASE", base),
+                patch.object(main, "JOBS", jobs),
+                patch.object(main, "JOB_CREATED_AT", created),
+                patch.object(main, "ACTIVE_JOB", False),
+            ):
+                tasks = BackgroundTasks()
+                result = main.retry_missing_clips(original_id, tasks)
+                self.assertEqual(result["count"], 3)
+                self.assertEqual(result["retry_of"], original_id)
+                self.assertEqual(len(tasks.tasks), 1)
+                self.assertEqual(tasks.tasks[0].args[2], 3)
+                self.assertEqual(len(jobs), 2)
+
     def test_gemini_review_is_optional_without_an_api_key(self):
         from unittest.mock import patch
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}, clear=False):
