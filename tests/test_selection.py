@@ -59,7 +59,7 @@ class SelectionTests(unittest.TestCase):
             with (
                 patch.object(main, "STATE_FILE", state_file),
                 patch.object(main, "JOBS", main.PersistentStateDict()),
-                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()),
+                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict(force_writes=True)),
             ):
                 main.JOBS["a" * 32] = {"status": "done", "clips": []}
                 main.JOB_CREATED_AT["a" * 32] = 123.0
@@ -90,7 +90,7 @@ class SelectionTests(unittest.TestCase):
                 patch.object(main, "BASE", base),
                 patch.object(main, "STATE_FILE", state_file),
                 patch.object(main, "JOBS", main.PersistentStateDict()),
-                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()),
+                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict(force_writes=True)),
             ):
                 main.restore_state()
                 self.assertEqual(main.JOBS[job_id]["status"], "partial")
