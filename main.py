@@ -328,12 +328,13 @@ footer{color:#737b91}
 .clip-card .download>span{font-size:18px;line-height:1}
 .clip-card .download small{margin-left:auto;color:#aeb9a0;font-size:8px;letter-spacing:1px}
 @media(max-width:680px){.clips-grid{grid-template-columns:1fr;gap:13px}.clip-card{padding:13px}.clip-card .clip-preview video{height:min(105vw,420px)}.results-heading h3{font-size:21px}}
+.tracking-toggle{display:flex!important;align-items:flex-start;gap:11px;margin:17px 0 5px!important;padding:14px;border:1px solid #3b4050;border-radius:12px;background:#111722;cursor:pointer}.tracking-toggle input{width:17px;height:17px;flex:0 0 17px;margin:1px 0 0;accent-color:var(--acid)}.tracking-toggle b{display:block;color:#f0f2f8;font-size:11px;letter-spacing:.4px;text-transform:none}.tracking-toggle small{display:block;margin-top:5px;color:#969eb0;font-size:10px;line-height:1.55;font-weight:500}.clip-time{color:#929bb0;font-size:10px;font-variant-numeric:tabular-nums}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y elige cuántos clips quieres generar.</p></div><span class="panel-icon">↗</span></div><form id="form">
 <label for="url">Enlace del vídeo</label><input id="url" name="url" type="url" required placeholder="Pega aquí tu enlace de Kick o YouTube" autocomplete="url">
-<div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div></div><input type="hidden" name="mode" value="balanced">
+<div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div></div><input type="hidden" name="mode" value="balanced"><input type="hidden" name="follow_face" value="false"><label class="tracking-toggle" for="follow_face"><input id="follow_face" type="checkbox" name="follow_face" value="true" checked><span><b>ENCUADRE INTELIGENTE</b><small>Si aparece una sola persona, la sigue suavemente. Si detecta un grupo o no está seguro, conserva la imagen completa.</small></span></label>
 <button id="btn" type="submit">ANALIZAR Y GENERAR CLIPS <span>→</span></button>
 </form><div id="result" aria-live="polite"></div></section>
 <aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Encuadre automático: grupo completo o seguimiento individual.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
@@ -342,22 +343,32 @@ footer{color:#737b91}
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
 let renderedClipCount=0;
+const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clipUrl=value=>/^\/download\/[a-f0-9]{32}\/clip_\d{2}\.mp4$/.test(String(value||""))?String(value):"#";
 function renderClips(state,done=false){
  const clips=state.clips||[];
  const finalMessage=state.status==="partial"?(state.message||"Se generaron clips parciales."):"¡Listo! Todos tus clips están preparados.";
+ const targetCount=done?Math.max(1,clips.length):Math.max(1,Number(form.count.value));
+ const pct=done?100:Math.max(0,Math.min(99,Number(state.progress_percent??Math.round(clips.length/targetCount*100))));
  if(clips.length===renderedClipCount){
   const status=result.querySelector(".progress-message");
+  const bar=result.querySelector(".progress-track span");
+  const count=result.querySelector(".results-count");
   if(status)status.textContent=done?finalMessage:(state.message||"Procesando…");
+  if(bar)bar.style.width=pct+"%";
+  if(count)count.textContent=clips.length+" / "+targetCount;
   return;
  }
- const cards=clips.map((clip,index)=>"<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+clip.name+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+clip.score+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+(clip.duration||30)+" segundos</span></div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+clip.url+"'></video></div><a class='download' href='"+clip.url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>").join("");
+ const cards=clips.map((clip,index)=>{
+  const url=clipUrl(clip.url),start=Number(clip.start_time||0),end=Number(clip.end_time||0);
+  const time=start||end?'<span class="clip-time">'+Math.floor(start/60).toString().padStart(2,"0")+':'+Math.floor(start%60).toString().padStart(2,"0")+' – '+Math.floor(end/60).toString().padStart(2,"0")+':'+Math.floor(end%60).toString().padStart(2,"0")+'</span>':"";
+  return "<article class='clip-card'><div class='clip-card-top'><span class='clip-number'>CLIP "+String(index+1).padStart(2,'0')+"</span><span class='clip-ready'>LISTO</span></div><h3>"+escapeHtml(clip.name||("Clip "+(index+1)))+"</h3><div class='clip-meta'>"+(clip.score?"<span class='clip-score' title='Índice comparativo de actividad; no predice viralidad'>Actividad "+escapeHtml(clip.score)+"/100</span>":"<span class='clip-score'>Momento seleccionado</span>")+"<span class='clip-duration'>"+escapeHtml(clip.duration||30)+" segundos</span>"+time+"</div><div class='clip-preview'><video controls playsinline preload='metadata' src='"+url+"'></video></div><a class='download' href='"+url+"' download><span>↓</span> Descargar clip <small>MP4 · VERTICAL 9:16</small></a></article>";
+ }).join("");
  renderedClipCount=clips.length;
- const targetCount=done?Math.max(1,clips.length):Math.max(1,Number(form.count.value));
- const pct=done?100:Math.min(100,Math.round(clips.length/targetCount*100));
- result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargar cada uno.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
+ result.innerHTML="<section class='results-heading'><div><span class='results-kicker'>TU CONTENIDO ESTÁ AQUÍ</span><h3>Clips generados</h3><p class='ok'>Puedes reproducirlos y descargarlos.</p></div><span class='results-count'>"+clips.length+" / "+targetCount+"</span></section><p class='muted progress-message'>"+escapeHtml(done?finalMessage:(state.message||"Procesando…"))+"</p><div class='progress-track'><span style='width:"+pct+"%'></span></div><div class='clips-grid'>"+cards+"</div>";
 }
 form.addEventListener("submit",async e=>{
- e.preventDefault();btn.disabled=true;renderedClipCount=0;result.textContent="Enviando vídeo para procesar…";
+ e.preventDefault();btn.disabled=true;renderedClipCount=0;result.innerHTML="<p class='progress-message'>Conectando con el motor de clips…</p><div class='progress-track'><span style='width:2%'></span></div>";
  try{
   const res=await fetch("/api/clips",{method:"POST",body:new FormData(form)});
   const data=await readJson(res);if(!res.ok)throw new Error(data.detail||"No se pudo iniciar el trabajo.");
@@ -365,8 +376,9 @@ form.addEventListener("submit",async e=>{
   let finished=false;
   while(!finished){
    await new Promise(r=>setTimeout(r,3000));
-   const check=await fetch("/api/jobs/"+encodeURIComponent(data.job_id));
-   const state=await readJson(check);if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");
+   let check,state,lastError;
+   for(let attempt=0;attempt<4;attempt++){try{check=await fetch("/api/jobs/"+encodeURIComponent(data.job_id),{cache:"no-store"});state=await readJson(check);if(!check.ok)throw new Error(state.detail||"No se pudo consultar el trabajo.");lastError=null;break;}catch(error){lastError=error;if(attempt<3)await new Promise(r=>setTimeout(r,1500*(attempt+1)));}}
+   if(lastError)throw lastError;
    if(state.status==="failed")throw new Error(state.error||"No se pudo procesar el vídeo.");
    if(state.status==="partial"){
     renderClips(state,true);
@@ -413,7 +425,7 @@ form.addEventListener("submit",async e=>{
    list.innerHTML=jobs.map(job=>{
     const created=new Date(job.created_at*1000).toLocaleString("es");
     const expires=new Date(job.expires_at*1000).toLocaleString("es");
-    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span></div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
+    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span>'+(clip.score?'<span class="clip-score">Actividad '+esc(clip.score)+'/100</span>':"")+'</div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
     return '<article class="history-job"><h3>Trabajo · '+esc(job.job_id.slice(0,8))+'</h3><span class="history-status">'+esc(labels[job.status]||job.status)+'</span><p>Enviado: '+esc(created)+'</p><p>Eliminación automática: '+esc(expires)+'</p><p>'+esc(job.message||"")+'</p>'+(clips?'<div class="history-clips">'+clips+'</div>':"")+'</article>';
    }).join("");
   }catch(error){list.className="history-empty";list.textContent=error.message||"No se pudo cargar el historial.";}
@@ -768,7 +780,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
     clips = []
     try:
         with JOBS_LOCK:
-            JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": []}
+            JOBS[job_id] = {"status": "processing", "message": "Analizando vídeo…", "clips": [], "progress_percent": 2}
 
         meta_options = {
             "format": "best[height<=720][ext=mp4]/best[height<=720]/worst[ext=mp4]/worst",
@@ -796,7 +808,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 "message": ("Analizando audio para elegir momentos de 20 a 60 segundos…"
                             if duration <= MAX_AUDIO_ANALYSIS_SECONDS else
                             "Vídeo largo: preparando selección distribuida para evitar una descarga de audio interminable…"),
-                "clips": []
+                "clips": [], "progress_percent": 7
             }
         audio_template = str(source_dir / "full_audio.%(ext)s")
         ranges = []
@@ -826,7 +838,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Detectando momentos activos y su duración ideal…",
-                    "clips": []
+                    "clips": [], "progress_percent": 12
                 }
             ranges = analyze_audio_highlights(audio_files[0], duration, total, mode, seen_ranges)
             if len(ranges) < total:
@@ -841,7 +853,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Análisis de audio omitido o no disponible. Seleccionando momentos repartidos por el vídeo…",
-                    "clips": []
+                    "clips": [], "progress_percent": 12
                 }
             segment_span = duration / max(1, total)
             fallback_length = min(30, max(MIN_CLIP_SECONDS, int(segment_span)))
@@ -918,10 +930,12 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                         active_item["mb"], speed_text
                     )
                 current = JOBS.get(job_id, {})
+                progress_percent = 15 + int(70 * (completed + active_item["percent"] / 100.0) / total)
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": message,
-                    "clips": list(current.get("clips") or [])
+                    "clips": list(current.get("clips") or []),
+                    "progress_percent": min(88, progress_percent)
                 }
 
         def clip_download_progress(index, data):
@@ -971,7 +985,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Descargando el fragmento %d/%d…" % (i, total),
-                    "clips": list(clips)
+                    "clips": list(clips), "progress_percent": 15 + int(70 * (i - 1) / total)
                 }
 
             _, source = download_one(i, clip_range)
@@ -980,7 +994,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Creando clip vertical %d/%d…" % (i, total),
-                    "clips": list(clips)
+                    "clips": list(clips), "progress_percent": 15 + int(70 * (i - 0.35) / total)
                 }
 
             filename = "clip_%02d.mp4" % i
@@ -1012,13 +1026,13 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 ffmpeg_command[ffmpeg_command.index("-filter_complex") + 1] = video_filter
                 subprocess.run(ffmpeg_command, capture_output=True, check=True, timeout=180)
 
-            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"])})
+            clips.append({"name": "Clip %d" % i, "url": "/download/%s/%s" % (job_id, filename), "score": clip_range.get("score"), "duration": int(clip_range["end_time"] - clip_range["start_time"]), "start_time": float(clip_range["start_time"]), "end_time": float(clip_range["end_time"])})
             remember_seen_range(source_key, clip_range["start_time"], clip_range["end_time"])
             with JOBS_LOCK:
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Clip %d/%d listo. Puedes reproducirlo mientras se prepara el siguiente." % (i, total),
-                    "clips": list(clips)
+                    "clips": list(clips), "progress_percent": 15 + int(80 * i / total)
                 }
             try:
                 source.unlink(missing_ok=True)
@@ -1032,7 +1046,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             JOBS[job_id] = {
                 "status": "done",
                 "message": "Clips verticales listos.",
-                "clips": clips
+                "clips": clips, "progress_percent": 100
             }
     except Exception as exc:
         print("CLIPS.ONTHE job %s failed: %s: %s" % (job_id, type(exc).__name__, exc), flush=True)
@@ -1044,7 +1058,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 "message": ("Se generaron %d clips antes de un problema. Puedes descargarlos; no se borraron." % len(clips)
                             if has_partial_clips else "No se pudo procesar el vídeo."),
                 "error": safe_error(exc),
-                "clips": list(clips)
+                "clips": list(clips), "progress_percent": 100 if has_partial_clips else 0
             }
     finally:
         with JOBS_LOCK:
@@ -1090,7 +1104,7 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
         raise HTTPException(503, "No se pudo reservar espacio temporal. Inténtalo de nuevo.")
     with JOBS_LOCK:
         JOB_CREATED_AT[job_id] = time.time()
-        JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": []}
+        JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": [], "progress_percent": 0}
     background_tasks.add_task(process_job, job_id, url, count, mode, follow_face)
     return {"job_id": job_id, "status": "queued"}
 
@@ -1108,6 +1122,7 @@ def list_jobs():
                 "job_id": job_id,
                 "status": job.get("status", "processing"),
                 "message": job.get("message", ""),
+                "progress_percent": int(job.get("progress_percent") or 0),
                 "clips": list(job.get("clips") or []),
                 "created_at": created_at,
                 "expires_at": created_at + JOB_TTL_SECONDS,
