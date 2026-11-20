@@ -622,15 +622,52 @@ main{width:min(1280px,calc(100% - 266px));margin:0 28px 0 238px}
  .rail-link.active:after{left:22%;right:22%;top:auto;bottom:-2px;width:auto;height:2px}
  main{width:calc(100% - 26px);margin:0 auto;padding-top:16px}
 }
+
+/* ESTRUCTURA REAL DEL DASHBOARD: jerarquía, controles y flujo de trabajo */
+.dashboard-heading{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:28px;align-items:end;margin:8px 0 34px;padding:8px 0 28px;border-bottom:1px solid #252b3b}
+.dashboard-heading h1{margin:0;font-size:clamp(38px,5vw,62px);line-height:1.02;letter-spacing:-2.8px;font-weight:950;color:#f4f5fb}
+.dashboard-heading h1 span{color:#a996ff}
+.dashboard-heading .tag{margin:14px 0 0;font-size:14px;max-width:570px}
+.dashboard-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dashboard-summary>div{display:flex;flex-direction:column;gap:7px;min-height:105px;padding:15px;border:1px solid #2c3345;border-radius:13px;background:linear-gradient(145deg,#151b28,#10141e)}
+.dashboard-summary small{font-size:8px;letter-spacing:1.4px;color:#8791a6;font-weight:900}
+.dashboard-summary b{font-size:16px;color:#e9eaf2;letter-spacing:-.3px}
+.dashboard-summary span{font-size:10px;color:#8e97a9}
+.workspace{grid-template-columns:minmax(0,1fr) 320px;gap:20px}
+.panel{border-radius:17px;padding:clamp(22px,3vw,32px)}
+.panel-heading{padding-bottom:17px;border-bottom:1px solid #292f40;margin-bottom:16px}
+.panel-heading h2{font-size:23px}
+#form{grid-template-columns:1fr;gap:0}
+#form>.form-grid{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#form>.form-grid>div{min-width:0}
+#form>label[for=url],#form>#url,#form>.tracking-toggle,#form>.form-hint,#form>button{grid-column:1/-1}
+#form label{margin-top:15px}
+#form input[type=url],#form select{min-height:52px}
+#form>.tracking-toggle{margin-top:17px!important}
+#form>button{margin-top:18px;min-height:54px;font-size:11px}
+.side-panel{padding:22px 20px;border-radius:17px;background:linear-gradient(150deg,#151b29,#10141d);border:1px solid #30384a}
+.side-panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.side-live{font-size:8px;letter-spacing:.8px;color:#80d8b6;white-space:nowrap}.side-live i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#5bd6a7;margin-right:5px}
+.side-panel h3{font-size:20px;letter-spacing:-.5px;margin:9px 0 20px}
+.workflow-steps{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.workflow-steps li{display:grid;grid-template-columns:31px 1fr;gap:11px;padding:14px 0;border-top:1px solid #293144}
+.workflow-steps li>span{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#22263a;color:#b6a6ff;font-size:9px;font-weight:900}
+.workflow-steps b{display:block;font-size:11px;color:#e1e5ef;margin:1px 0 5px}
+.workflow-steps small{display:block;color:#8993a7;font-size:10px;line-height:1.5}
+.side-note{margin-top:17px;padding:14px;border:1px solid #34334a;border-radius:11px;background:#181a29}
+.side-note b{font-size:11px;color:#d8d4ef}.side-note p{font-size:10px;line-height:1.6;color:#939aae;margin:7px 0 0}
+.side-note a{display:inline-flex;gap:8px;margin-top:12px;color:#b7a5ff;font-size:10px;font-weight:850;text-decoration:none}
+@media(max-width:900px){.workspace{grid-template-columns:minmax(0,1fr) 275px;gap:14px}.dashboard-heading{grid-template-columns:1fr}.dashboard-summary{max-width:430px}}
+@media(max-width:680px){.dashboard-heading{gap:18px;margin:5px 0 20px;padding-bottom:20px}.dashboard-heading h1{font-size:39px;letter-spacing:-1.8px}.dashboard-heading .tag{font-size:13px}.dashboard-summary{grid-template-columns:1fr 1fr}.dashboard-summary>div{min-height:90px;padding:12px}.workspace{grid-template-columns:1fr}.panel{padding:18px 15px}.panel-heading h2{font-size:21px}#form>.form-grid{grid-template-columns:1fr}.side-panel{padding:18px 16px}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio"><span class="rail-symbol">⌂</span><span class="rail-label">Inicio</span></a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips"><span class="rail-symbol">✦</span><span class="rail-label">Crear clips</span></a><a class="rail-link" href="#result" data-nav="results" aria-label="Mis clips" title="Mis clips"><span class="rail-symbol">▣</span><span class="rail-label">Mis clips</span></a><a class="rail-link" href="#history-view" data-nav="history" aria-label="Historial" title="Historial"><span class="rail-symbol">◷</span><span class="rail-label">Historial</span></a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
-<section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
+<section class="dashboard-heading"><div><p class="eyebrow">ESPACIO DE TRABAJO / INICIO</p><h1>Tu próximo clip<br><span>empieza aquí.</span></h1><p class="tag">Convierte tus directos en clips verticales. Configura el proyecto y deja que CLIPS.ONTHE haga el trabajo.</p></div><div class="dashboard-summary"><div><small>FORMATO DE SALIDA</small><b>9:16</b><span>Vertical · 720 × 1280</span></div><div><small>PLATAFORMAS</small><b>TikTok · Reels</b><span>YouTube Shorts</span></div></div></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y elige cuántos clips quieres generar.</p></div><span class="panel-icon">↗</span></div><form id="form">
 <label for="url">Enlace del vídeo</label><input id="url" name="url" type="url" required placeholder="Pega aquí tu enlace de Kick o YouTube" autocomplete="url">
-<div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div></div><input type="hidden" name="mode" value="balanced"><input type="hidden" name="follow_face" value="false"><label class="tracking-toggle" for="follow_face"><input id="follow_face" type="checkbox" name="follow_face" value="true" checked><span><b>ENCUADRE INTELIGENTE</b><small>Si aparece una sola persona, la sigue suavemente. Si detecta un grupo o no está seguro, conserva la imagen completa.</small></span></label>
+<div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div><div><label for="mode">Enfoque del contenido</label><select id="mode" name="mode"><option value="balanced" selected>Automático · mejores momentos</option><option value="reactions">Reacciones y momentos intensos</option><option value="conversation">Conversaciones</option><option value="gameplay">Gameplay</option></select></div></div><input type="hidden" name="follow_face" value="false"><label class="tracking-toggle" for="follow_face"><input id="follow_face" type="checkbox" name="follow_face" value="true" checked><span><b>ENCUADRE INTELIGENTE</b><small>Si aparece una sola persona, la sigue suavemente. Si detecta un grupo o no está seguro, conserva la imagen completa.</small></span></label>
 <button id="btn" type="submit">ANALIZAR Y GENERAR CLIPS <span>→</span></button>
 </form><div id="result" aria-live="polite"></div></section>
-<aside class="side-panel"><p class="eyebrow">02 / QUÉ RECIBES</p><h3>Listos para publicar</h3><div class="side-feature"><span class="side-icon">▣</span><div><b>Vertical 9:16</b><small>720 × 1280 con imagen completa.</small></div></div><div class="side-feature"><span class="side-icon">◉</span><div><b>Encuadre opcional</b><small>Encuadre automático: grupo completo o seguimiento individual.</small></div></div><div class="side-note"><b>Flujo sencillo</b><p>Analiza · genera · reproduce · descarga. Los clips van apareciendo a medida que se terminan.</p></div></aside></section>
+<aside class="side-panel"><div class="side-panel-head"><p class="eyebrow">GUÍA DEL PROYECTO</p><span class="side-live"><i></i> LISTO PARA INICIAR</span></div><h3>De enlace a publicación</h3><ol class="workflow-steps"><li><span>01</span><div><b>Conecta tu directo</b><small>Pega un enlace público de Kick o YouTube.</small></div></li><li><span>02</span><div><b>Define tu selección</b><small>Elige cantidad y enfoque de los clips.</small></div></li><li><span>03</span><div><b>Revisa tus resultados</b><small>Reproduce cada clip o descarga el paquete completo.</small></div></li></ol><div class="side-note"><b>Tu biblioteca</b><p>Los proyectos aparecen en Historial y los clips generados en Mis clips. Se conservan durante 48 horas cuando el almacenamiento del servidor sigue disponible.</p><a href="#history-view" data-nav="history">Abrir historial <span>↗</span></a></div></aside></section>
 <footer>CLIPS.ONTHE · Herramienta independiente. El procesamiento depende de que el vídeo sea público y la plataforma permita descargarlo.</footer>
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
