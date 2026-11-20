@@ -139,7 +139,7 @@ main{width:min(1240px,calc(100% - 48px));padding:24px 0 48px}
 .visual-top,.visual-bottom{display:flex;justify-content:space-between;align-items:center;color:#8e93a7;font-size:8px;font-weight:900;letter-spacing:1.7px}.live-indicator{color:#67d9b2}
 .visual-screen{position:relative;overflow:hidden;display:grid;place-items:center;aspect-ratio:16/9;margin:14px 0;border-radius:12px;background:radial-gradient(circle at 50% 35%,#4a347f,#17182b 48%,#0a1018 100%);border:1px solid #3d355f}
 .screen-glow{position:absolute;width:190px;height:120px;border-radius:50%;background:#9a75ff44;filter:blur(35px)}.play-icon{position:relative;z-index:1;width:48px;height:48px;border:1px solid #ffffff55;border-radius:50%;display:grid;place-items:center;color:#fff;background:#ffffff14;padding-left:3px}
-.screen-caption{position:absolute;left:17px;bottom:22px;font-size:8px;line-height:1.7;letter-spacing:2px;color:#c5c4d4}.screen-caption b{font-size:14px;color:white}
+
 .screen-bars{position:absolute;right:16px;bottom:18px;height:42px;display:flex;align-items:center;gap:3px}.screen-bars i{width:3px;border-radius:4px;background:linear-gradient(#a88bff,#49d6c2);height:50%}.screen-bars i:nth-child(3n){height:90%}.screen-bars i:nth-child(3n+1){height:35%}.screen-bars i:nth-child(3n+2){height:65%}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
 .panel{background:linear-gradient(145deg,#171b29,#11151f);border:1px solid #30364a;border-radius:20px;padding:clamp(20px,3vw,30px);box-shadow:0 24px 70px #0005}.panel:before{display:none}
@@ -201,7 +201,7 @@ main{width:min(1280px,calc(100% - 56px));padding:25px 0 58px}
 .visual-screen{background:radial-gradient(circle at 50% 38%,#7d3219,#2b1710 48%,#0b0b0b 100%);border-color:#704027}
 .screen-glow{background:#ff6a244d}
 .play-icon{border-color:#ffca9a77;background:#ff8b321c}
-.screen-caption{color:#e5bda0}
+
 .screen-bars i{background:linear-gradient(#ffc15a,#ed4724)}
 .workspace{grid-template-columns:minmax(0,1fr) 310px;gap:20px}
 .panel{background:linear-gradient(145deg,#191715,#11100f 76%);border:1px solid #49372b;border-radius:18px;box-shadow:0 30px 90px #0009,0 0 0 1px #ff8a2b08 inset}
@@ -273,7 +273,7 @@ main{width:min(1440px,calc(100% - 130px));margin:0 28px 0 108px;padding:22px 0 6
 .visual-screen{flex:1;min-height:150px;margin:14px 0;background:radial-gradient(circle at 50% 50%,#d6ff4522,transparent 45%),linear-gradient(135deg,#1c2440,#111421);border:1px solid #74709a}
 .screen-glow{width:230px;height:150px;background:#b7ff4550;filter:blur(50px)}
 .play-icon{width:58px;height:58px;border-color:#d6ff4588;background:#d6ff451c;color:var(--acid);font-size:18px;box-shadow:0 0 30px #d6ff4533}
-.screen-caption{font-size:9px;letter-spacing:2.5px}.screen-caption b{font-size:19px;color:var(--acid)}
+
 .screen-bars i{background:linear-gradient(var(--acid),var(--cyan))}
 .workspace{grid-template-columns:minmax(0,1fr) 320px;gap:22px}
 .panel{background:linear-gradient(145deg,#151929,#10131e);border:1px solid #353b52;border-radius:22px;padding:30px;box-shadow:0 24px 75px #0007,inset 0 1px #ffffff08}
@@ -330,7 +330,7 @@ footer{color:#737b91}
 @media(max-width:680px){.clips-grid{grid-template-columns:1fr;gap:13px}.clip-card{padding:13px}.clip-card .clip-preview video{height:min(105vw,420px)}.results-heading h3{font-size:21px}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
-<section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-caption">TU PRÓXIMO CLIP<br><b>EMPIEZA AQUÍ</b></div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
+<section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y elige cuántos clips quieres generar.</p></div><span class="panel-icon">↗</span></div><form id="form">
 <label for="url">Enlace del vídeo</label><input id="url" name="url" type="url" required placeholder="Pega aquí tu enlace de Kick o YouTube" autocomplete="url">
 <div class="form-grid"><div><label for="count">Cantidad de clips</label><select id="count" name="count"><option value="1" selected>1 clip · prueba rápida</option><option value="5">5 clips</option><option value="10">10 clips</option><option value="20">20 clips</option></select></div></div><input type="hidden" name="mode" value="balanced">
