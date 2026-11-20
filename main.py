@@ -357,6 +357,20 @@ button,a,select,input{ -webkit-tap-highlight-color:transparent }
 @media(max-width:900px){.hero{grid-template-columns:minmax(0,1fr) minmax(220px,.8fr)}.workspace{grid-template-columns:minmax(0,1fr) 260px}.clips-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.hero{grid-template-columns:1fr}.hero-visual{min-height:180px}.workspace{grid-template-columns:1fr}.clips-grid{grid-template-columns:1fr}.clip-card .clip-preview video{height:min(112vw,440px)}.results-heading{align-items:flex-start}.results-heading h3{font-size:21px}.rail-link.active:after{left:4px;right:4px;top:auto;bottom:-7px;width:auto;height:3px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+/* VISTA INDEPENDIENTE: MIS CLIPS */
+#clips-view{display:none;min-height:calc(100vh - 80px);padding:28px 0 60px}
+body.clips-view-mode main>:not(#clips-view){display:none!important}
+body.clips-view-mode #clips-view{display:block}
+.clips-view-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 26px;padding:8px 0 22px;border-bottom:1px solid #34394d}
+.clips-view-title .eyebrow{margin:0 0 8px}
+.clips-view-title h1{margin:0;font-size:clamp(30px,5vw,48px);letter-spacing:-1.8px;color:#f4f6fb}
+.clips-view-title p{margin:8px 0 0;color:#9ca5b6;font-size:13px}
+#clips-back{border:1px solid #41485d;border-radius:11px;background:#171c29;color:#edf0f8;padding:12px 17px;font-weight:800;cursor:pointer;white-space:nowrap}
+#clips-back:hover{border-color:var(--acid,#d6ff45);color:var(--acid,#d6ff45)}
+body.clips-view-mode #result{margin:0;padding:0;border:0}
+body.clips-view-mode #result:empty:after{content:"Todavía no has generado clips. Vuelve a Crear clips para iniciar un proyecto.";display:block;padding:28px;border:1px dashed #41485d;border-radius:16px;color:#9ca5b6;text-align:center}
+body.clips-view-mode .clips-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+@media(max-width:680px){#clips-view{padding:18px 0 40px}.clips-view-head{align-items:flex-start;flex-direction:column}.clips-view-title h1{font-size:34px}#clips-back{width:100%}body.clips-view-mode .clips-grid{grid-template-columns:1fr}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
@@ -369,6 +383,16 @@ button,a,select,input{ -webkit-tap-highlight-color:transparent }
 <footer>CLIPS.ONTHE · Herramienta independiente. El procesamiento depende de que el vídeo sea público y la plataforma permita descargarlo.</footer>
 </main><script>
 const form=document.querySelector("#form"),btn=document.querySelector("#btn"),result=document.querySelector("#result");
+const clipsView=document.createElement("section");
+clipsView.id="clips-view";
+clipsView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">TU BIBLIOTECA PERSONAL</p><h1>Mis clips</h1><p>Solo tus clips generados, sin el resto del panel de creación.</p></div><button type="button" id="clips-back">← Volver a crear clips</button></div>';
+document.querySelector("main").appendChild(clipsView);
+clipsView.appendChild(result);
+document.querySelector("#clips-back").addEventListener("click",()=>{
+ document.body.classList.remove("clips-view-mode");
+ document.querySelectorAll(".rail-link[data-nav]").forEach(link=>link.classList.toggle("active",link.dataset.nav==="create"));
+ document.querySelector("#form")?.scrollIntoView({behavior:"smooth",block:"start"});
+});
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
 let renderedClipCount=0;
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -470,14 +494,14 @@ form.addEventListener("submit",async e=>{
   event.preventDefault();
   navLinks.forEach(item=>item.classList.toggle("active",item===link));
   const action=link.dataset.nav;
-  if(action==="home"){goTo(document.querySelector("#top"));return;}
-  if(action==="create"){goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),450);return;}
+  if(action==="home"){document.body.classList.remove("clips-view-mode");goTo(document.querySelector("#top"));return;}
+  if(action==="create"){document.body.classList.remove("clips-view-mode");goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),450);return;}
   if(action==="results"){
-   if(!result.textContent.trim())result.innerHTML='<p class="muted nav-hint">Todavía no hay resultados. Pega un enlace y pulsa «Analizar y generar clips» para empezar.</p>';
-   goTo(result);
+   document.body.classList.add("clips-view-mode");
    return;
   }
   if(action==="history"){
+   document.body.classList.remove("clips-view-mode");
    if(!panel.classList.contains("open"))toggle.click();
    goTo(panel);
   }
