@@ -731,8 +731,9 @@ def full_frame_vertical_filter(content_crop=None):
         # Build the backdrop at low resolution before blurring to keep CPU use low.
         # This avoids the visible enlarged top/bottom strips from the source image.
         "[bgsrc]" + crop +
-        "scale=90:160:force_original_aspect_ratio=increase,crop=90:160,"
-        "gblur=sigma=18,eq=brightness=-0.28:saturation=0.45,"
+        # Stretch only the backdrop, then blur it. This keeps dark gameplay scenes
+        # visible as a soft background instead of crushing them to black.
+        "scale=90:160,gblur=sigma=10,eq=brightness=0.02:saturation=0.8,"
         "scale=720:1280[bg];"
         "[fgsrc]" + crop +
         "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
