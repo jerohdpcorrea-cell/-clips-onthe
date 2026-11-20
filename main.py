@@ -474,6 +474,7 @@ body.history-view-mode #history-view{display:block}
 #history-refresh:hover{border-color:var(--acid,#d6ff45);color:var(--acid,#d6ff45)}
 .download-all{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 18px;padding:12px 17px;border:1px solid #d6ff45;border-radius:11px;background:linear-gradient(120deg,rgba(214,255,69,.14),rgba(214,255,69,.05));color:#eaff9a;font-weight:850;text-decoration:none;transition:transform .18s ease,border-color .18s ease}
 .download-all:hover{transform:translateY(-1px);border-color:#efffa8}
+.retry-job{display:inline-flex;align-items:center;justify-content:center;width:auto;min-height:38px;margin:12px 10px 8px 0;padding:9px 13px;border:1px solid #4b4770;border-radius:9px;background:#211e35;color:#ddd5ff;font-size:11px;font-weight:850;letter-spacing:.2px;box-shadow:none;cursor:pointer}.retry-job:disabled{opacity:.6;cursor:wait}
 .history-download-all{margin:0 0 14px}
 @media(max-width:680px){.download-all{width:100%;box-sizing:border-box}}
 .history-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
@@ -589,6 +590,21 @@ form.addEventListener("submit",async e=>{
  finally{btn.disabled=false;}
 });
 /* Historial independiente: el trabajo se ejecuta en el servidor, no en esta pantalla */
+historyView.querySelector("#history-list").addEventListener("click",async event=>{
+ const button=event.target.closest("[data-retry-id]");
+ if(!button)return;
+ const oldText=button.textContent;
+ button.disabled=true;button.textContent="Preparando reintento…";
+ try{
+  const response=await fetch("/api/jobs/"+encodeURIComponent(button.dataset.retryId)+"/retry",{method:"POST"});
+  const data=await readJson(response);
+  if(!response.ok)throw new Error(data.detail||"No se pudo iniciar el reintento.");
+  await loadHistory();
+ }catch(error){
+  button.disabled=false;button.textContent=oldText;
+  alert(error.message||"No se pudo iniciar el reintento.");
+ }
+});
 async function loadHistory(){
  const list=historyView.querySelector("#history-list");
  try{
@@ -612,7 +628,8 @@ async function loadHistory(){
    const percent=Math.max(0,Math.min(100,Number(job.progress_percent||0)));
    const state=job.status||"processing";
    const zip=/^[a-f0-9]{32}$/.test(job.job_id)&&job.clips?.length?'<a class="download-all history-download-all" href="/download/'+job.job_id+'/all.zip">↓ Descargar todos · ZIP</a>':"";
-   return '<article class="history-job"><div class="history-job-head"><div><span class="history-kicker">PROYECTO · '+escapeHtml(job.job_id.slice(0,8).toUpperCase())+'</span><h2>'+escapeHtml(state==="processing"||state==="queued"?"Generación en curso":labels[state]||"Trabajo")+'</h2><p>'+escapeHtml(created)+'</p></div><span class="history-status '+escapeHtml(state)+'">'+escapeHtml(labels[state]||state)+'</span></div><div class="history-progress"><span style="width:'+percent+'%"></span></div><p class="history-message">'+escapeHtml(job.message||"")+'</p>'+zip+(clips?'<div class="history-clips-grid">'+clips+'</div>':(state==="processing"||state==="queued"?'<p class="history-wait">Los clips aparecerán aquí en cuanto estén listos. Puedes salir y volver cuando quieras.</p>':""))+'</article>';
+   const retryButton=(state==="partial"||state==="failed")?'<button type="button" class="retry-job" data-retry-id="'+escapeHtml(job.job_id)+'">↻ Reintentar clips faltantes</button>':"";
+   return '<article class="history-job"><div class="history-job-head"><div><span class="history-kicker">PROYECTO · '+escapeHtml(job.job_id.slice(0,8).toUpperCase())+'</span><h2>'+escapeHtml(state==="processing"||state==="queued"?"Generación en curso":labels[state]||"Trabajo")+'</h2><p>'+escapeHtml(created)+'</p></div><span class="history-status '+escapeHtml(state)+'">'+escapeHtml(labels[state]||state)+'</span></div><div class="history-progress"><span style="width:'+percent+'%"></span></div><p class="history-message">'+escapeHtml(job.message||"")+'</p>'+zip+retryButton+(clips?'<div class="history-clips-grid">'+clips+'</div>':(state==="processing"||state==="queued"?'<p class="history-wait">Los clips aparecerán aquí en cuanto estén listos. Puedes salir y volver cuando quieras.</p>':""))+'</article>';
   }).join("");
  }catch(error){list.innerHTML='<div class="history-empty">'+escapeHtml(error.message||"No se pudo cargar el historial.")+'</div>';}
 }
@@ -1558,11 +1575,79 @@ def create_clips(background_tasks: BackgroundTasks, url: str = Form(...), count:
         with JOBS_LOCK:
             ACTIVE_JOB = False
         raise HTTPException(503, "No se pudo reservar espacio temporal. Inténtalo de nuevo.")
+    try:
+        (BASE / job_id / "job-config.json").write_text(json.dumps({
+            "url": url, "count": count, "mode": mode, "follow_face": follow_face
+        }), encoding="utf-8")
+    except OSError:
+        shutil.rmtree(BASE / job_id, ignore_errors=True)
+        with JOBS_LOCK:
+            ACTIVE_JOB = False
+        raise HTTPException(503, "No se pudo guardar la configuración del proyecto. Inténtalo de nuevo.")
     with JOBS_LOCK:
         JOB_CREATED_AT[job_id] = time.time()
         JOBS[job_id] = {"status": "queued", "message": "Trabajo en cola…", "clips": [], "progress_percent": 0}
     background_tasks.add_task(process_job, job_id, url, count, mode, follow_face)
     return {"job_id": job_id, "status": "queued"}
+
+@app.post("/api/jobs/{job_id}/retry")
+def retry_missing_clips(job_id: str, background_tasks: BackgroundTasks):
+    """Start a separate job for only the clips missing from a partial/failed project."""
+    global ACTIVE_JOB
+    if not re.fullmatch(r"[a-f0-9]{32}", job_id):
+        raise HTTPException(404, "Proyecto no encontrado.")
+    with JOBS_LOCK:
+        original = JOBS.get(job_id)
+        if not original:
+            raise HTTPException(404, "Proyecto no encontrado o historial no disponible.")
+        if original.get("status") not in ("partial", "failed"):
+            raise HTTPException(409, "Solo puedes reintentar proyectos incompletos o fallidos.")
+        if ACTIVE_JOB:
+            raise HTTPException(429, "Ya hay otro vídeo procesándose. Espera a que termine.")
+        config_path = BASE / job_id / "job-config.json"
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            raise HTTPException(410, "Este proyecto no tiene la configuración necesaria para reintentar.")
+        original_count = int(config.get("count") or 0)
+        completed_count = len(original.get("clips") or [])
+        missing_count = max(0, original_count - completed_count)
+        if missing_count < 1:
+            raise HTTPException(409, "Este proyecto ya tiene todos los clips solicitados.")
+        missing_count = min(20, missing_count)
+        if not valid_source_url(str(config.get("url") or "")):
+            raise HTTPException(410, "El enlace original ya no está disponible para reintentar.")
+        ACTIVE_JOB = True
+
+    retry_id = uuid.uuid4().hex
+    retry_folder = BASE / retry_id
+    try:
+        retry_folder.mkdir(parents=True, exist_ok=False)
+        retry_config = {
+            "url": config["url"], "count": missing_count,
+            "mode": config.get("mode", "balanced"),
+            "follow_face": bool(config.get("follow_face", True)),
+            "retry_of": job_id
+        }
+        (retry_folder / "job-config.json").write_text(json.dumps(retry_config), encoding="utf-8")
+    except OSError:
+        shutil.rmtree(retry_folder, ignore_errors=True)
+        with JOBS_LOCK:
+            ACTIVE_JOB = False
+        raise HTTPException(503, "No se pudo preparar el reintento. Inténtalo de nuevo.")
+
+    with JOBS_LOCK:
+        JOB_CREATED_AT[retry_id] = time.time()
+        JOBS[retry_id] = {
+            "status": "queued", "message": "Reintentando %d clips pendientes…" % missing_count,
+            "clips": [], "progress_percent": 0
+        }
+    background_tasks.add_task(
+        process_job, retry_id, retry_config["url"], missing_count,
+        retry_config["mode"], retry_config["follow_face"]
+    )
+    return {"job_id": retry_id, "status": "queued", "retry_of": job_id, "count": missing_count}
+
 
 @app.get("/api/jobs")
 def list_jobs():
