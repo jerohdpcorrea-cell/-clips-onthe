@@ -967,7 +967,7 @@ def review_clip_with_ai(clip_path, mode="balanced", clip_duration=30):
     api_key = os.getenv("CLIPS_AI_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.getenv("CLIPS_AI_MODEL", "gpt-4o-mini").strip()
+    model = os.getenv("CLIPS_AI_MODEL", "gpt-5.4-mini").strip()
     base_url = os.getenv("CLIPS_AI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/")
     if not model or not base_url.startswith("https://"):
         return None
@@ -984,7 +984,7 @@ def review_clip_with_ai(clip_path, mode="balanced", clip_duration=30):
         if frame:
             images.append({
                 "type": "image_url",
-                "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(frame).decode("ascii")}
+                "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(frame).decode("ascii"), "detail": "low"}
             })
     if not images:
         return None
@@ -999,8 +999,7 @@ def review_clip_with_ai(clip_path, mode="balanced", clip_duration=30):
     )
     payload = {
         "model": model,
-        "temperature": 0.1,
-        "max_tokens": 140,
+        "max_completion_tokens": 140,
         "messages": [
             {"role": "system", "content": "Eres un revisor visual prudente de clips. Responde solo JSON válido."},
             {"role": "user", "content": [{"type": "text", "text": prompt}] + images}
