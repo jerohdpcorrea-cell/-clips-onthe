@@ -375,7 +375,39 @@ body.clips-view-mode #result{margin:0;padding:0;border:0}
 body.clips-view-mode #result:empty:after{content:"Todavía no has generado clips. Vuelve a Crear clips para iniciar un proyecto.";display:block;padding:28px;border:1px dashed #41485d;border-radius:16px;color:#9ca5b6;text-align:center}
 body.clips-view-mode .clips-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
 @media(max-width:680px){#clips-view{padding:18px 0 40px}.clips-view-head{align-items:flex-start;flex-direction:column}.clips-view-title h1{font-size:34px}#clips-back{width:100%}body.clips-view-mode .clips-grid{grid-template-columns:1fr}}
-</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
+
+/* Historial como página secundaria independiente */
+#history-view{display:none;min-height:calc(100vh - 90px);padding:28px 0 60px}
+body.history-view-mode main>:not(#history-view){display:none!important}
+body.history-view-mode #history-view{display:block}
+#history-view .clips-view-head{align-items:center}
+#history-refresh{width:auto;min-height:44px;margin:0;padding:0 16px;border:1px solid #4b4a3b;border-radius:11px;background:#1b1a15;color:#f3e6d3;font-weight:850;cursor:pointer}
+#history-refresh:hover{border-color:var(--acid,#d6ff45);color:var(--acid,#d6ff45)}
+.history-list{display:grid;gap:17px}
+.history-empty{padding:34px;border:1px dashed #41485d;border-radius:16px;color:#a5adbd;text-align:center;line-height:1.8}
+.history-empty small{color:#7f899e}
+.history-job{padding:22px;border:1px solid #383b4d;border-radius:17px;background:linear-gradient(145deg,#171923,#10121a);overflow:hidden}
+.history-job-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.history-kicker{color:var(--acid,#d6ff45);font-size:9px;font-weight:900;letter-spacing:1.7px}
+.history-job-head h2{margin:7px 0 4px;font-size:21px;letter-spacing:-.5px}
+.history-job-head p,.history-message{margin:4px 0;color:#939bad;font-size:11px;line-height:1.6}
+.history-status{flex:0 0 auto;padding:7px 10px;border:1px solid #4a4d5e;border-radius:8px;color:#c5c9d5;font-size:9px;font-weight:900}
+.history-status.processing,.history-status.queued{border-color:#76602d;color:#f3d58b;background:#2a2417}
+.history-status.done{border-color:#376b55;color:#a5ebc5;background:#14251e}
+.history-status.partial{border-color:#76602d;color:#f3d58b}
+.history-status.failed{border-color:#754444;color:#ffb1a1;background:#2b1717}
+.history-progress{height:6px;margin:14px 0 10px;background:#2b2e3d;border-radius:99px;overflow:hidden}
+.history-progress span{display:block;height:100%;background:linear-gradient(90deg,#d6ff45,#4de8dc);border-radius:99px;transition:width .3s}
+.history-wait{padding:12px;border:1px solid #34394a;border-radius:10px;color:#aab1c1;font-size:11px}
+.history-clips-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:16px}
+.history-clip{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:10px;padding:12px;border:1px solid #343849;border-radius:12px;background:#0d1018;min-width:0}
+.history-clip-info{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+.history-clip-info b{font-size:12px;overflow-wrap:anywhere}
+.history-clip-info span,.history-clip-info small{color:#9da5b6;font-size:10px;line-height:1.5}
+.history-clip-info a{margin-top:auto;color:#e4d9a4;font-size:10px;font-weight:850;text-decoration:none}
+.history-clip video{width:100%;height:150px;object-fit:contain;background:#000;border-radius:8px}
+@media(max-width:680px){#history-view{padding:18px 0 40px}#history-view .clips-view-head{align-items:stretch}#history-refresh{width:100%}.history-job{padding:15px}.history-job-head{flex-direction:column}.history-clips-grid{grid-template-columns:1fr}.history-clip{grid-template-columns:minmax(0,1fr) 92px}.history-clip video{height:130px}}
+</style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-view" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
 <section class="workspace"><section class="panel"><div class="panel-heading"><div><p class="eyebrow">01 / NUEVO PROYECTO</p><h2>Crear clips</h2><p>Pega el enlace y elige cuántos clips quieres generar.</p></div><span class="panel-icon">↗</span></div><form id="form">
@@ -393,10 +425,15 @@ clipsView.innerHTML='<div class="clips-view-head"><div class="clips-view-title">
 document.querySelector("main").appendChild(clipsView);
 clipsView.appendChild(result);
 document.querySelector("#clips-back").addEventListener("click",()=>{
- document.body.classList.remove("clips-view-mode");
+ document.body.classList.remove("clips-view-mode","history-view-mode");
  document.querySelectorAll(".rail-link[data-nav]").forEach(link=>link.classList.toggle("active",link.dataset.nav==="create"));
  document.querySelector("#form")?.scrollIntoView({behavior:"smooth",block:"start"});
 });
+const historyView=document.createElement("section");
+historyView.id="history-view";
+historyView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">ACTIVIDAD Y PROGRESO</p><h1>Historial</h1><p>Tus trabajos siguen procesándose aunque cierres esta página. Aquí puedes volver a ver su progreso y los clips listos.</p></div><button type="button" id="history-refresh">↻ Actualizar</button></div><div id="history-list" class="history-list"><p class="history-empty">Cargando historial…</p></div>';
+document.querySelector("main").appendChild(historyView);
+document.querySelector("#history-refresh").addEventListener("click",loadHistory);
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
 let renderedClipCount=0;
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -450,68 +487,42 @@ form.addEventListener("submit",async e=>{
  }catch(err){result.innerHTML="<p class='error'>"+String(err.message).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+"</p>";}
  finally{btn.disabled=false;}
 });
-/* Historial desplegable de trabajos enviados */
-(function(){
- const workspace=document.querySelector(".workspace");
- if(!workspace)return;
- const toolbar=document.createElement("div");
- toolbar.className="history-toolbar";
- toolbar.innerHTML='<button type="button" id="history-toggle" aria-expanded="false">▤ &nbsp; MIS CLIPS</button>';
- const panel=document.createElement("section");
- panel.id="history-panel";
- panel.setAttribute("aria-live","polite");
- panel.innerHTML='<div class="history-head"><h2>Historial de clips</h2><span class="history-status">48 HORAS</span></div><p class="history-note">Tus trabajos y clips estarán disponibles durante 48 horas desde que los enviaste.</p><div id="history-list" class="history-empty">Pulsa actualizar para consultar tus trabajos.</div>';
- workspace.parentNode.insertBefore(toolbar,workspace);
- workspace.parentNode.insertBefore(panel,workspace);
- const toggle=toolbar.querySelector("button");
- const list=panel.querySelector("#history-list");
- const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- const labels={queued:"En cola",processing:"Procesando",done:"Terminado",partial:"Parcial",failed:"Fallido"};
- async function loadHistory(){
-  list.className="history-empty";list.textContent="Cargando historial…";
-  try{
-   const response=await fetch("/api/jobs",{cache:"no-store"});
-   const data=await readJson(response);
-   if(!response.ok)throw new Error(data.detail||"No se pudo cargar el historial.");
-   const jobs=data.jobs||[];
-   if(!jobs.length){list.className="history-empty";list.textContent="Todavía no has enviado ningún vídeo.";return;}
-   list.className="";
-   list.innerHTML=jobs.map(job=>{
-    const created=new Date(job.created_at*1000).toLocaleString("es");
-    const expires=new Date(job.expires_at*1000).toLocaleString("es");
-    const clips=(job.clips||[]).map(clip=>'<article class="clip-card"><h3>'+esc(clip.name)+'</h3><div class="clip-meta"><span class="clip-duration">'+esc(clip.duration||30)+' s</span>'+(clip.score?'<span class="clip-score">Actividad '+esc(clip.score)+'/100</span>':"")+(clip.gemini_score?'<span class="clip-ai">Gemini '+esc(clip.gemini_score)+'/100</span>':"")+(clip.gemini_reason?'<span class="clip-ai-note">'+esc(clip.gemini_reason)+'</span>':"")+'</div><video controls playsinline preload="metadata" src="'+esc(clip.url)+'"></video><a class="download" href="'+esc(clip.url)+'" download>Descargar ↓</a></article>').join("");
-    return '<article class="history-job"><h3>Trabajo · '+esc(job.job_id.slice(0,8))+'</h3><span class="history-status">'+esc(labels[job.status]||job.status)+'</span><p>Enviado: '+esc(created)+'</p><p>Eliminación automática: '+esc(expires)+'</p><p>'+esc(job.message||"")+'</p>'+(clips?'<div class="history-clips">'+clips+'</div>':"")+'</article>';
+/* Historial independiente: el trabajo se ejecuta en el servidor, no en esta pantalla */
+async function loadHistory(){
+ const list=historyView.querySelector("#history-list");
+ try{
+  const response=await fetch("/api/jobs",{cache:"no-store"});
+  const data=await readJson(response);
+  if(!response.ok)throw new Error(data.detail||"No se pudo cargar el historial.");
+  const jobs=data.jobs||[];
+  if(!jobs.length){list.innerHTML='<div class="history-empty">Todavía no has generado ningún clip.<br><small>Cuando inicies un trabajo aparecerá aquí automáticamente.</small></div>';return;}
+  const labels={queued:"En cola",processing:"Procesando",done:"Completado",partial:"Completado parcialmente",failed:"No se pudo completar"};
+  list.innerHTML=jobs.map(job=>{
+   const created=new Date(job.created_at*1000).toLocaleString("es");
+   const clips=(job.clips||[]).map((clip,index)=>{
+    const src=clipUrl(clip.url);
+    return '<article class="history-clip"><div class="history-clip-info"><b>'+escapeHtml(clip.name||("Clip "+(index+1)))+'</b><span>'+escapeHtml(clip.duration||30)+' s'+(clip.gemini_score?' · Gemini '+escapeHtml(clip.gemini_score)+'/100':'')+'</span>'+(clip.gemini_reason?'<small>'+escapeHtml(clip.gemini_reason)+'</small>':'')+'<a href="'+src+'" download>Descargar ↓</a></div><video controls playsinline preload="metadata" src="'+src+'"></video></article>';
    }).join("");
-  }catch(error){list.className="history-empty";list.textContent=error.message||"No se pudo cargar el historial.";}
- }
- toggle.addEventListener("click",()=>{
-  const open=panel.classList.toggle("open");
-  toggle.setAttribute("aria-expanded",String(open));
-  toggle.textContent=open?"▤  OCULTAR MIS CLIPS":"▤  MIS CLIPS";
-  if(open)loadHistory();
- });
- window.addEventListener("focus",()=>{if(panel.classList.contains("open"))loadHistory();});
- /* Navegación funcional del rail lateral */
- const navLinks=[...document.querySelectorAll(".rail-link[data-nav]")];
- const goTo=(target)=>target?.scrollIntoView({behavior:"smooth",block:"start"});
- navLinks.forEach(link=>link.addEventListener("click",event=>{
-  event.preventDefault();
-  navLinks.forEach(item=>item.classList.toggle("active",item===link));
-  const action=link.dataset.nav;
-  if(action==="home"){document.body.classList.remove("clips-view-mode");goTo(document.querySelector("#top"));return;}
-  if(action==="create"){document.body.classList.remove("clips-view-mode");goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),450);return;}
-  if(action==="results"){
-   document.body.classList.add("clips-view-mode");
-   return;
-  }
-  if(action==="history"){
-   document.body.classList.remove("clips-view-mode");
-   if(!panel.classList.contains("open"))toggle.click();
-   goTo(panel);
-  }
- }));
-})();
-</script></body></html>"""
+   const percent=Math.max(0,Math.min(100,Number(job.progress_percent||0)));
+   const state=job.status||"processing";
+   return '<article class="history-job"><div class="history-job-head"><div><span class="history-kicker">PROYECTO · '+escapeHtml(job.job_id.slice(0,8).toUpperCase())+'</span><h2>'+escapeHtml(state==="processing"||state==="queued"?"Generación en curso":labels[state]||"Trabajo")+'</h2><p>'+escapeHtml(created)+'</p></div><span class="history-status '+escapeHtml(state)+'">'+escapeHtml(labels[state]||state)+'</span></div><div class="history-progress"><span style="width:'+percent+'%"></span></div><p class="history-message">'+escapeHtml(job.message||"")+'</p>'+(clips?'<div class="history-clips-grid">'+clips+'</div>':(state==="processing"||state==="queued"?'<p class="history-wait">Los clips aparecerán aquí en cuanto estén listos. Puedes salir y volver cuando quieras.</p>':""))+'</article>';
+  }).join("");
+ }catch(error){list.innerHTML='<div class="history-empty">'+escapeHtml(error.message||"No se pudo cargar el historial.")+'</div>';}
+}
+const navLinks=[...document.querySelectorAll(".rail-link[data-nav]")];
+const goTo=target=>target?.scrollIntoView({behavior:"smooth",block:"start"});
+navLinks.forEach(link=>link.addEventListener("click",event=>{
+ event.preventDefault();
+ navLinks.forEach(item=>item.classList.toggle("active",item===link));
+ const action=link.dataset.nav;
+ if(action==="home"){document.body.classList.remove("clips-view-mode","history-view-mode");goTo(document.querySelector("#top"));return;}
+ if(action==="create"){document.body.classList.remove("clips-view-mode","history-view-mode");goTo(form);setTimeout(()=>document.querySelector("#url")?.focus({preventScroll:true}),350);return;}
+ if(action==="results"){document.body.classList.remove("history-view-mode");document.body.classList.add("clips-view-mode");return;}
+ if(action==="history"){document.body.classList.remove("clips-view-mode");document.body.classList.add("history-view-mode");loadHistory();return;}
+}));
+window.addEventListener("focus",()=>{if(document.body.classList.contains("history-view-mode"))loadHistory();});
+setInterval(()=>{if(document.body.classList.contains("history-view-mode"))loadHistory();},5000);
+loadHistory();</script></body></html>"""
 
 def cleanup_old_jobs():
     now = time.time()
