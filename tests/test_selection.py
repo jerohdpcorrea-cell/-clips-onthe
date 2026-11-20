@@ -49,6 +49,16 @@ class SelectionTests(unittest.TestCase):
         self.assertIn(".clips-grid", main.HTML)
         self.assertIn('data-nav="history"', main.HTML)
 
+    def test_gemini_review_is_optional_without_an_api_key(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}, clear=False):
+            self.assertIsNone(main.review_clip_with_gemini("unused.mp4", 30))
+
+    def test_gemini_review_is_visible_in_clip_cards_and_history(self):
+        self.assertIn("gemini_score", main.HTML)
+        self.assertIn("gemini_reason", main.HTML)
+        self.assertIn("clip-ai", main.HTML)
+
 
 if __name__ == "__main__":
     unittest.main()
