@@ -476,6 +476,11 @@ body.history-view-mode #history-view{display:block}
 .download-all:hover{transform:translateY(-1px);border-color:#efffa8}
 .history-download-all{margin:0 0 14px}
 @media(max-width:680px){.download-all{width:100%;box-sizing:border-box}}
+.history-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.history-stat{padding:16px 18px;border:1px solid #34394d;border-radius:14px;background:linear-gradient(145deg,#191d2a,#11141d);display:flex;flex-direction:column;gap:6px}
+.history-stat b{font-size:27px;line-height:1;color:#f3f5fa;font-variant-numeric:tabular-nums}
+.history-stat span{font-size:10px;letter-spacing:1.1px;color:#9099ad;font-weight:850}
+@media(max-width:680px){.history-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.history-stat{padding:13px}}
 .history-list{display:grid;gap:17px}
 .history-empty{padding:34px;border:1px dashed #41485d;border-radius:16px;color:#a5adbd;text-align:center;line-height:1.8}
 .history-empty small{color:#7f899e}
@@ -524,7 +529,7 @@ document.querySelector("#clips-back").addEventListener("click",()=>{
 });
 const historyView=document.createElement("section");
 historyView.id="history-view";
-historyView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">ACTIVIDAD Y PROGRESO</p><h1>Historial</h1><p>Tus trabajos siguen procesándose aunque cierres esta página. Aquí puedes volver a ver su progreso y los clips listos.</p></div><button type="button" id="history-refresh">↻ Actualizar</button></div><div id="history-list" class="history-list"><p class="history-empty">Cargando historial…</p></div>';
+historyView.innerHTML='<div class="clips-view-head"><div class="clips-view-title"><p class="eyebrow">ACTIVIDAD Y PROGRESO</p><h1>Historial</h1><p>Tus trabajos siguen procesándose aunque cierres esta página. Aquí puedes volver a ver su progreso y los clips listos.</p></div><button type="button" id="history-refresh">↻ Actualizar</button></div><div id="history-stats" class="history-stats" aria-live="polite"></div><div id="history-list" class="history-list"><p class="history-empty">Cargando historial…</p></div>';
 document.querySelector("main").appendChild(historyView);
 document.querySelector("#history-refresh").addEventListener("click",loadHistory);
 async function readJson(response){const raw=await response.text();if(!raw.trim())throw new Error("El servidor se reinició o cerró la conexión durante el proceso. Inicia un nuevo intento.");try{return JSON.parse(raw)}catch{throw new Error("El servidor devolvió una respuesta incompleta. Espera unos segundos e inténtalo de nuevo.")}}
@@ -590,6 +595,11 @@ async function loadHistory(){
   const data=await readJson(response);
   if(!response.ok)throw new Error(data.detail||"No se pudo cargar el historial.");
   const jobs=data.jobs||[];
+  const totalClips=jobs.reduce((sum,job)=>sum+(job.clips||[]).length,0);
+  const completedJobs=jobs.filter(job=>job.status==="done"||job.status==="partial").length;
+  const activeJobs=jobs.filter(job=>job.status==="queued"||job.status==="processing").length;
+  const stats=historyView.querySelector("#history-stats");
+  if(stats)stats.innerHTML='<div class="history-stat"><b>'+jobs.length+'</b><span>PROYECTOS</span></div><div class="history-stat"><b>'+totalClips+'</b><span>CLIPS CREADOS</span></div><div class="history-stat"><b>'+completedJobs+'</b><span>FINALIZADOS</span></div><div class="history-stat"><b>'+activeJobs+'</b><span>EN PROCESO</span></div>';
   if(!jobs.length){list.innerHTML='<div class="history-empty">Todavía no has generado ningún clip.<br><small>Cuando inicies un trabajo aparecerá aquí automáticamente.</small></div>';return;}
   const labels={queued:"En cola",processing:"Procesando",done:"Completado",partial:"Completado parcialmente",failed:"No se pudo completar"};
   list.innerHTML=jobs.map(job=>{
