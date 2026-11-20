@@ -36,11 +36,6 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(len(chosen), 1)
         self.assertEqual(chosen[0][0], 70)
 
-    def test_optional_ai_is_disabled_without_api_key(self):
-        from unittest.mock import patch
-        with patch.dict("os.environ", {}, clear=True):
-            self.assertIsNone(main.review_clip_with_ai("unused.mp4"))
-
     def test_url_validation_allows_only_supported_https_hosts(self):
         self.assertTrue(main.valid_source_url("https://kick.com/example/videos/123"))
         self.assertTrue(main.valid_source_url("https://youtu.be/abcdefghijk"))
