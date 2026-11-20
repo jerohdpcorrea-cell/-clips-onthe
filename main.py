@@ -866,7 +866,7 @@ def detect_visible_crop(source_path):
                  "-an", "-f", "null", "-"],
                 capture_output=True, text=True, timeout=10
             )
-            matches = re.findall(r"crop=(-?\\d+):(\\d+):(-?\\d+):(\\d+)", result.stderr or "")
+            matches = re.findall(r"crop=(-?\d+):(\d+):(-?\d+):(\d+)", result.stderr or "")
             for item in matches:
                 width, height, x, y = [int(value) for value in item]
                 # cropdetect reports negative width for frames with only
