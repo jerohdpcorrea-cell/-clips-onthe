@@ -56,9 +56,11 @@ class SelectionTests(unittest.TestCase):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as directory:
             state_file = Path(directory) / "jobs-state.json"
-            with patch.object(main, "STATE_FILE", state_file), \\
-                 patch.object(main, "JOBS", main.PersistentStateDict()), \\
-                 patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()):
+            with (
+                patch.object(main, "STATE_FILE", state_file),
+                patch.object(main, "JOBS", main.PersistentStateDict()),
+                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()),
+            ):
                 main.JOBS["a" * 32] = {"status": "done", "clips": []}
                 main.JOB_CREATED_AT["a" * 32] = 123.0
                 saved = json.loads(state_file.read_text(encoding="utf-8"))
@@ -84,10 +86,12 @@ class SelectionTests(unittest.TestCase):
                 ]}},
                 "created_at": {job_id: 123.0}
             }), encoding="utf-8")
-            with patch.object(main, "BASE", base), \\
-                 patch.object(main, "STATE_FILE", state_file), \\
-                 patch.object(main, "JOBS", main.PersistentStateDict()), \\
-                 patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()):
+            with (
+                patch.object(main, "BASE", base),
+                patch.object(main, "STATE_FILE", state_file),
+                patch.object(main, "JOBS", main.PersistentStateDict()),
+                patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()),
+            ):
                 main.restore_state()
                 self.assertEqual(main.JOBS[job_id]["status"], "partial")
                 self.assertEqual(len(main.JOBS[job_id]["clips"]), 1)
