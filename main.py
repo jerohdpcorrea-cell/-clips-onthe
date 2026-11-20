@@ -979,7 +979,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
             JOBS[job_id] = {
                 "status": "processing",
                 "message": "Preparando %d fragmentos en calidad ligera…" % total,
-                "clips": []
+                "clips": [], "progress_percent": 15
             }
 
         clips = []
@@ -990,7 +990,7 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
                 JOBS[job_id] = {
                     "status": "processing",
                     "message": "Descargando el fragmento %d/%d…" % (i, total),
-                    "clips": list(clips), "progress_percent": 15 + int(80 * (i - 1 + 0.8) / total)
+                    "clips": list(clips), "progress_percent": 15 + int(80 * (i - 1) / total)
                 }
 
             _, source = download_one(i, clip_range)
