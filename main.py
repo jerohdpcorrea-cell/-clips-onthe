@@ -468,6 +468,11 @@ def cleanup_old_jobs():
                     with JOBS_LOCK:
                         JOBS.pop(folder.name, None)
                         JOB_CREATED_AT.pop(folder.name, None)
+            elif folder.is_file() and folder.name.startswith("seen_"):
+                # La memoria de momentos usados también es temporal: no dejar
+                # un JSON por cada vídeo acumulándose indefinidamente en /tmp.
+                if now - folder.stat().st_mtime > JOB_TTL_SECONDS:
+                    folder.unlink(missing_ok=True)
         except OSError:
             pass
 
