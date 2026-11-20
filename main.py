@@ -1583,9 +1583,9 @@ def job_status(job_id: str):
         raise HTTPException(404, "Trabajo no encontrado.")
     with JOBS_LOCK:
         job = JOBS.get(job_id)
-    if not job:
-        raise HTTPException(404, "El trabajo expiró o el servidor se reinició. Inicia uno nuevo.")
-    return job
+        if not job:
+            raise HTTPException(404, "El trabajo expiró o el servidor se reinició. Inicia uno nuevo.")
+        return {**job, "job_id": job_id}
 
 def create_job_archive(job_id):
     """Build a ZIP containing only completed clips registered for this job."""
