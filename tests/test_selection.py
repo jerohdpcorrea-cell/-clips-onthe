@@ -49,18 +49,49 @@ class SelectionTests(unittest.TestCase):
         self.assertIn(".clips-grid", main.HTML)
         self.assertIn('data-nav="history"', main.HTML)
 
-    def test_job_state_is_saved_and_restored_from_configured_data_directory(self):
+    def test_job_state_dict_writes_atomic_history_snapshot(self):
         import json
         import tempfile
         from pathlib import Path
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as directory:
             state_file = Path(directory) / "jobs-state.json"
-            payload = {"version": 1, "jobs": {"a" * 32: {"status": "done", "clips": []}},
-                       "created_at": {"a" * 32: 123.0}}
-            state_file.write_text(json.dumps(payload), encoding="utf-8")
-            self.assertEqual(json.loads(state_file.read_text(encoding="utf-8"))["version"], 1)
-            self.assertTrue(state_file.is_file())
+            with patch.object(main, "STATE_FILE", state_file), \\
+                 patch.object(main, "JOBS", main.PersistentStateDict()), \\
+                 patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()):
+                main.JOBS["a" * 32] = {"status": "done", "clips": []}
+                main.JOB_CREATED_AT["a" * 32] = 123.0
+                saved = json.loads(state_file.read_text(encoding="utf-8"))
+                self.assertEqual(saved["jobs"]["a" * 32]["status"], "done")
+                self.assertEqual(saved["created_at"]["a" * 32], 123.0)
+
+    def test_restart_recovery_keeps_completed_clip_files(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        job_id = "b" * 32
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            job_folder = base / job_id
+            job_folder.mkdir()
+            (job_folder / "clip_01.mp4").write_bytes(b"test-video")
+            state_file = base / "jobs-state.json"
+            state_file.write_text(json.dumps({
+                "version": 1,
+                "jobs": {job_id: {"status": "processing", "clips": [
+                    {"name": "Clip 1", "url": "/download/%s/clip_01.mp4" % job_id}
+                ]}},
+                "created_at": {job_id: 123.0}
+            }), encoding="utf-8")
+            with patch.object(main, "BASE", base), \\
+                 patch.object(main, "STATE_FILE", state_file), \\
+                 patch.object(main, "JOBS", main.PersistentStateDict()), \\
+                 patch.object(main, "JOB_CREATED_AT", main.PersistentStateDict()):
+                main.restore_state()
+                self.assertEqual(main.JOBS[job_id]["status"], "partial")
+                self.assertEqual(len(main.JOBS[job_id]["clips"]), 1)
+                self.assertTrue((job_folder / "clip_01.mp4").is_file())
 
     def test_gemini_review_is_optional_without_an_api_key(self):
         from unittest.mock import patch
