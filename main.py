@@ -707,7 +707,7 @@ editorSeek.addEventListener("input",()=>{if(Number.isFinite(editorVideo.duration
 editorVideo.addEventListener("loadedmetadata",()=>{editorSeek.value="0";editorTime.textContent=editorFormatTime(0)+" / "+editorFormatTime(editorVideo.duration);});
 editorVideo.addEventListener("timeupdate",()=>{if(Number.isFinite(editorVideo.duration)&&editorVideo.duration>0){editorSeek.value=String(Math.round(editorVideo.currentTime/editorVideo.duration*1000));editorTime.textContent=editorFormatTime(editorVideo.currentTime)+" / "+editorFormatTime(editorVideo.duration);}});
 document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!editor.hidden)closeEditor();});
-result.addEventListener("click",event=>{
+document.addEventListener("click",event=>{
  const button=event.target.closest(".open-editor");
  if(!button)return;
  const src=clipUrl(button.dataset.editorSrc);
@@ -831,7 +831,7 @@ async function loadHistory(){
    const created=new Date(job.created_at*1000).toLocaleString("es");
    const clips=(job.clips||[]).map((clip,index)=>{
     const src=clipUrl(clip.url);
-    return '<article class="history-clip"><div class="history-clip-info"><b>'+escapeHtml(clip.name||("Clip "+(index+1)))+'</b><span>'+escapeHtml(clip.duration||30)+' s'+(clip.gemini_score?' · Gemini '+escapeHtml(clip.gemini_score)+'/100':'')+'</span>'+(clip.gemini_reason?'<small>'+escapeHtml(clip.gemini_reason)+'</small>':'')+'<a href="'+src+'" download>Descargar ↓</a></div><video controls playsinline preload="metadata" src="'+src+'"></video></article>';
+    return '<article class="history-clip"><div class="history-clip-info"><b>'+escapeHtml(clip.name||("Clip "+(index+1)))+'</b><span>'+escapeHtml(clip.duration||30)+' s'+(clip.gemini_score?' · Gemini '+escapeHtml(clip.gemini_score)+'/100':'')+'</span>'+(clip.gemini_reason?'<small>'+escapeHtml(clip.gemini_reason)+'</small>':'')+'<button type="button" class="open-editor" data-editor-src="'+src+'" data-editor-name="'+escapeHtml(clip.name||("Clip "+(index+1)))+'" data-editor-duration="'+escapeHtml(clip.duration||30)+'">▣ Abrir editor</button><a href="'+src+'" download>Descargar ↓</a></div><video controls playsinline preload="metadata" src="'+src+'"></video></article>';
    }).join("");
    const percent=Math.max(0,Math.min(100,Number(job.progress_percent||0)));
    const state=job.status||"processing";
