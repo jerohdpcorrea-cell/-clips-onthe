@@ -892,25 +892,18 @@ def detect_visible_crop(source_path):
         return None
 
 def full_frame_vertical_filter(content_crop=None):
-    """Fill 9:16 with a soft, non-distracting backdrop and preserve the full scene."""
+    """Create a lightweight 9:16 canvas while keeping every person and the full scene visible."""
     crop = ""
     if content_crop:
         width, height, x, y = content_crop
         crop = "crop=%d:%d:%d:%d," % (width, height, x, y)
+    # Avoid the split/blur/upscale background pipeline: it repeatedly timed out
+    # on the free 0.15-CPU instance. Fit the complete source once and pad it.
     return (
-        "split=2[bgsrc][fgsrc];"
-        # Build the backdrop at low resolution before blurring to keep CPU use low.
-        # This avoids the visible enlarged top/bottom strips from the source image.
-        "[bgsrc]" + crop +
-        # Stretch only the backdrop, then blur it. This keeps dark gameplay scenes
-        # visible as a soft background instead of crushing them to black.
-        "scale=90:160,gblur=sigma=10,eq=brightness=0.02:saturation=0.8,"
-        "scale=720:1280[bg];"
-        "[fgsrc]" + crop +
-        "scale=720:1280:force_original_aspect_ratio=decrease[fg];"
-        "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1"
+        crop
+        + "scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+        + "pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
     )
-
 
 def build_face_crop_filter(source_path):
     """Track a lone face; keep the full scene whenever a group is present."""
@@ -985,7 +978,7 @@ def safe_error(exc):
     if "max-filesize" in msg or "file is larger" in msg:
         return "Un fragmento supera el límite temporal de 160 MB. Prueba con otro vídeo o una resolución más baja."
     if "duration" in msg or "demasiado largo" in msg:
-        return "El vídeo supera el límite de duración de 6 horas."
+        return "El vídeo supera el límite de duración de 24 horas."
     return "No se pudo procesar el vídeo. Comprueba que el enlace sea público y vuelve a intentarlo."
 
 def source_history_path(source_key):
@@ -1390,6 +1383,15 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
     except Exception as exc:
         print("CLIPS.ONTHE job %s failed: %s: %s" % (job_id, type(exc).__name__, exc), flush=True)
         shutil.rmtree(source_dir, ignore_errors=True)
+        # Remove only an unfinished output from the clip that failed.
+        # Keep every MP4 already registered in the partial-results list.
+        completed_names = {Path(item.get("url", "")).name for item in clips}
+        for unfinished in folder.glob("clip_*.mp4"):
+            if unfinished.name not in completed_names:
+                try:
+                    unfinished.unlink(missing_ok=True)
+                except OSError:
+                    pass
         has_partial_clips = bool(clips)
         with JOBS_LOCK:
             JOBS[job_id] = {
