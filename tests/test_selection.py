@@ -97,6 +97,30 @@ class SelectionTests(unittest.TestCase):
                 self.assertEqual(len(main.JOBS[job_id]["clips"]), 1)
                 self.assertTrue((job_folder / "clip_01.mp4").is_file())
 
+    def test_job_archive_contains_only_registered_existing_clips(self):
+        import tempfile
+        import zipfile
+        from pathlib import Path
+        from unittest.mock import patch
+        job_id = "c" * 32
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory) / job_id
+            folder.mkdir()
+            (folder / "clip_01.mp4").write_bytes(b"first")
+            (folder / "clip_02.mp4").write_bytes(b"second")
+            (folder / "clip_03.mp4").write_bytes(b"unregistered")
+            with (
+                patch.object(main, "BASE", Path(directory)),
+                patch.object(main, "JOBS", {job_id: {"clips": [
+                    {"url": "/download/%s/clip_01.mp4" % job_id},
+                    {"url": "/download/%s/clip_02.mp4" % job_id},
+                ]}}),
+            ):
+                archive_path = main.create_job_archive(job_id)
+                with zipfile.ZipFile(archive_path) as archive:
+                    self.assertEqual(archive.namelist(), ["CLIPS-ONTHE_01.mp4", "CLIPS-ONTHE_02.mp4"])
+                    self.assertEqual(archive.read("CLIPS-ONTHE_01.mp4"), b"first")
+
     def test_gemini_review_is_optional_without_an_api_key(self):
         from unittest.mock import patch
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}, clear=False):
