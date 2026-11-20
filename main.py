@@ -329,6 +329,34 @@ footer{color:#737b91}
 .clip-card .download small{margin-left:auto;color:#aeb9a0;font-size:8px;letter-spacing:1px}
 @media(max-width:680px){.clips-grid{grid-template-columns:1fr;gap:13px}.clip-card{padding:13px}.clip-card .clip-preview video{height:min(105vw,420px)}.results-heading h3{font-size:21px}}
 .tracking-toggle{display:flex!important;align-items:flex-start;gap:11px;margin:17px 0 5px!important;padding:14px;border:1px solid #3b4050;border-radius:12px;background:#111722;cursor:pointer}.tracking-toggle input{width:17px;height:17px;flex:0 0 17px;margin:1px 0 0;accent-color:var(--acid)}.tracking-toggle b{display:block;color:#f0f2f8;font-size:11px;letter-spacing:.4px;text-transform:none}.tracking-toggle small{display:block;margin-top:5px;color:#969eb0;font-size:10px;line-height:1.55;font-weight:500}.clip-time{color:#929bb0;font-size:10px;font-variant-numeric:tabular-nums}
+
+/* QUALITY PASS — interfaz consistente, accesible y adaptable */
+:root{color-scheme:dark;--focus-ring:0 0 0 3px #d6ff4530}
+html{scroll-padding-top:24px}
+button,a,select,input{ -webkit-tap-highlight-color:transparent }
+:focus-visible{outline:2px solid var(--acid,#d6ff45);outline-offset:3px}
+.rail-link{position:relative}
+.rail-link.active{background:#202638;border-color:#536044;color:var(--acid,#d6ff45)}
+.rail-link.active:after{content:"";position:absolute;left:-11px;top:10px;bottom:10px;width:3px;border-radius:4px;background:var(--acid,#d6ff45)}
+.hero{isolation:isolate}
+.hero-visual{min-width:0}
+.workspace{align-items:start}
+.panel,.side-panel{min-width:0}
+#form button{min-height:56px}
+#form button:focus-visible,#history-toggle:focus-visible,.download:focus-visible{outline-color:var(--acid,#d6ff45)}
+#result{scroll-margin-top:24px}
+.results-heading{align-items:flex-end}
+.clips-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.clip-card{height:100%;min-width:0}
+.clip-card .clip-preview{min-width:0}
+.clip-card .clip-preview video{max-width:100%;height:clamp(250px,30vw,390px)}
+.clip-card .download{min-height:44px}
+.history-toolbar{margin-top:4px}
+#history-toggle{min-height:44px;font-weight:850;cursor:pointer}
+.history-job{overflow-wrap:anywhere}
+@media(max-width:900px){.hero{grid-template-columns:minmax(0,1fr) minmax(220px,.8fr)}.workspace{grid-template-columns:minmax(0,1fr) 260px}.clips-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.hero{grid-template-columns:1fr}.hero-visual{min-height:180px}.workspace{grid-template-columns:1fr}.clips-grid{grid-template-columns:1fr}.clip-card .clip-preview video{height:min(112vw,440px)}.results-heading{align-items:flex-start}.results-heading h3{font-size:21px}.rail-link.active:after{left:4px;right:4px;top:auto;bottom:-7px;width:auto;height:3px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style></head><body><aside class="rail"><div class="rail-logo">C/O</div><div class="rail-line"></div><a class="rail-link active" href="#top" data-nav="home" aria-label="Inicio" title="Inicio">⌂</a><a class="rail-link" href="#form" data-nav="create" aria-label="Crear clips" title="Crear clips">✦</a><a class="rail-link" href="#result" data-nav="results" aria-label="Resultados" title="Resultados">▣</a><a class="rail-link" href="#history-panel" data-nav="history" aria-label="Historial" title="Historial">◷</a><div class="rail-bottom">CREATOR MODE</div></aside><main id="top">
 <header class="topline"><div class="brand-mark">C<span>.</span>O</div><div class="nav-brand">CLIPS.ONTHE<small>CREATOR STUDIO</small></div><span class="topline-pill"><i></i> MOTOR DE CLIPS ACTIVO</span></header>
 <section class="hero"><div class="hero-copy"><p class="eyebrow">TU CONTENIDO, MULTIPLICADO</p><h1 class="brand">De directo a<br><span>clip listo.</span></h1><p class="tag">Encuentra momentos con energía, conviértelos en vertical y descárgalos para TikTok, Reels y Shorts.</p><div class="hero-tags"><span>720 × 1280</span><span>9:16 vertical</span></div></div><aside class="hero-visual"><div class="visual-top"><span>CLIP ENGINE</span><span class="live-indicator">● READY</span></div><div class="visual-screen"><div class="screen-glow"></div><div class="play-icon">▶</div><div class="screen-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="visual-bottom"><span>ANÁLISIS DE AUDIO</span><b>01 — 03</b></div></aside></section>
@@ -521,6 +549,64 @@ def download_size_guard(data):
         raise yt_dlp.utils.DownloadError("max-filesize")
 
 
+def select_diverse_candidates(candidates, count, duration, exclude_ranges=None):
+    """Greedy highlight selection balancing quality, timeline coverage and clip length."""
+    exclude_ranges = exclude_ranges or []
+    selected = []
+    remaining = list(candidates)
+
+    def allowed(start, end, gap):
+        if any(not (end + gap <= prev_start or start >= prev_end + gap)
+               for prev_start, prev_end, _ in selected):
+            return False
+        return not any(
+            not (end + gap <= float(item[0]) or start >= float(item[1]) + gap)
+            for item in exclude_ranges
+        )
+
+    while remaining and len(selected) < count:
+        best_index = None
+        best_rank = None
+        for index, (score, start, length) in enumerate(remaining):
+            end = start + length
+            if not allowed(start, end, 10):
+                continue
+            same_length = sum(1 for _, _, chosen_length in selected if chosen_length == length)
+            region = min(3, int((start / max(1.0, duration)) * 4))
+            same_region = sum(
+                1 for chosen_start, _, _ in selected
+                if min(3, int((chosen_start / max(1.0, duration)) * 4)) == region
+            )
+            # Small penalties keep strong moments while avoiding a batch of
+            # nearly identical durations or clips concentrated in one section.
+            rank = score - (0.12 * same_length) - (0.055 * same_region)
+            key = (rank, score, -start, -length)
+            if best_rank is None or key > best_rank:
+                best_rank = key
+                best_index = index
+        if best_index is None:
+            break
+        score, start, length = remaining.pop(best_index)
+        selected.append((start, start + length, score))
+
+    # If the requested count is not reached, relax only the safety gap;
+    # never allow overlap or reuse of an excluded moment.
+    while remaining and len(selected) < count:
+        eligible = [
+            (index, item) for index, item in enumerate(remaining)
+            if allowed(item[1], item[1] + item[2], 0)
+        ]
+        if not eligible:
+            break
+        index, (score, start, length) = max(
+            eligible, key=lambda pair: (pair[1][0], -pair[1][1], -pair[1][2])
+        )
+        remaining.pop(index)
+        selected.append((start, start + length, score))
+
+    return sorted(selected, key=lambda item: item[0])
+
+
 def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclude_ranges=None):
     exclude_ranges = exclude_ranges or []
     """Rank moments using lightweight energy, activity and short audio-burst cues."""
@@ -614,31 +700,9 @@ def analyze_audio_highlights(audio_path, duration, count, mode="balanced", exclu
                 )
                 candidates.append((score, start, length))
 
-        # En empates, preferir el momento más temprano para que la selección sea estable.
-        candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
-        chosen = []
-        for score, start, length in candidates:
-            end = start + length
-            if all(end + 10 <= prev_start or start >= prev_end + 10
-                   for prev_start, prev_end, _ in chosen) and all(
-                end + 10 <= float(item[0]) or start >= float(item[1]) + 10
-                for item in exclude_ranges
-            ):
-                chosen.append((start, end, score))
-                if len(chosen) >= count:
-                    break
-
-        if len(chosen) < count:
-            for score, start, length in candidates:
-                end = start + length
-                if all(end <= prev_start or start >= prev_end
-                       for prev_start, prev_end, _ in chosen) and all(
-                    end + 10 <= float(item[0]) or start >= float(item[1]) + 10
-                    for item in exclude_ranges
-                ):
-                    chosen.append((start, end, score))
-                    if len(chosen) >= count:
-                        break
+        # Selección voraz con diversidad: combina puntuación, duración y
+        # distribución temporal sin sacrificar momentos de alta actividad.
+        chosen = select_diverse_candidates(candidates, count, available, exclude_ranges)
 
         # Ajustar bordes solo cuando hay silencio claro y sin bajar de 20 s.
         refined = []
