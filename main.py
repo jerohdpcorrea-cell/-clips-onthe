@@ -676,21 +676,32 @@ def detect_visible_crop(source_path):
              "-an", "-f", "null", "-"],
             capture_output=True, text=True, timeout=12
         )
-        matches = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", result.stderr or "")
-        if not matches:
-            return None
-        values = [int(round(statistics.median([int(item[i]) for item in matches]))) for i in range(4)]
-        width, height, x, y = values
         probe = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0",
              "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", str(source_path)],
             capture_output=True, text=True, timeout=8
         )
         source_width, source_height = [int(v) for v in probe.stdout.strip().split("x", 1)]
-        if width < source_width * 0.55 or height < source_height * 0.18:
+        # cropdetect can emit a negative width and x=source_width when a frame
+        # has only horizontal letterboxing. Keep its valid vertical bounds and
+        # use the complete source width instead of discarding the detection.
+        matches = re.findall(r"crop=(-?\\d+):(\\d+):(-?\\d+):(\\d+)", result.stderr or "")
+        valid = []
+        for item in matches:
+            width, height, x, y = [int(value) for value in item]
+            if width <= 0 or x < 0 or x + width > source_width:
+                width, x = source_width, 0
+            if height <= 0 or y < 0 or y + height > source_height:
+                continue
+            if width < source_width * 0.55 or height < source_height * 0.18:
+                continue
+            if width >= source_width * 0.97 and height >= source_height * 0.97:
+                continue
+            valid.append((width, height, x, y))
+        if not valid:
             return None
-        if width >= source_width * 0.97 and height >= source_height * 0.97:
-            return None
+        values = [int(round(statistics.median([item[i] for item in valid]))) for i in range(4)]
+        width, height, x, y = values
         if x < 0 or y < 0 or x + width > source_width or y + height > source_height:
             return None
         return width, height, x, y
@@ -1056,8 +1067,11 @@ def process_job(job_id, url, count, mode="balanced", follow_face=False):
 
             filename = "clip_%02d.mp4" % i
             output = folder / filename
-            face_crop_filter = build_face_crop_filter(source) if follow_face else ""
             content_crop = detect_visible_crop(source)
+            # If the source contains an embedded/letterboxed scene, preserve that
+            # entire scene. Face zoom would otherwise magnify a small webcam inset
+            # and discard the gameplay or the other people on screen.
+            face_crop_filter = build_face_crop_filter(source) if follow_face and not content_crop else ""
             full_frame_filter = full_frame_vertical_filter(content_crop)
             # Convertir a vertical conservando la imagen completa; sin procesamiento de texto.
             if face_crop_filter:
